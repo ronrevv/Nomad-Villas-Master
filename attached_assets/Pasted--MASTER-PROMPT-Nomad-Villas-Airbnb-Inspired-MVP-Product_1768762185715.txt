@@ -1,0 +1,213 @@
+🔹 MASTER PROMPT: Nomad Villas – Airbnb-Inspired MVP
+🎯 Product Goal
+
+Create a minimalistic, clean, and modern MVP called “Nomad Villas”, inspired by Airbnb’s user experience and product flow, but with a lighter, more premium, and uncluttered UI.
+
+This platform allows villa owners (hosts) to list villas and travelers (users) to discover, book, and manage stays.
+The product must feel calm, premium, and intuitive, with excellent usability across mobile, tablet, and laptop screens.
+
+🧭 Design & UX Principles
+
+Minimalistic, whitespace-driven layout
+
+Clean typography (no heavy shadows or clutter)
+
+Soft neutral colors with subtle accents
+
+Card-based layouts with rounded corners
+
+Smooth transitions and micro-interactions
+
+No visual overload (less information per screen)
+
+Content should breathe like Airbnb, but simpler
+
+📱 Responsiveness (MANDATORY)
+
+Design must be fully responsive:
+
+Mobile-first design
+
+Optimized layouts for:
+
+Mobile (single-column, sticky bottom CTAs)
+
+Tablet (2-column adaptive layouts)
+
+Laptop/Desktop (grid layouts, side filters)
+
+Navigation adapts per device:
+
+Mobile → bottom navigation / hamburger
+
+Desktop → top navigation bar
+
+🏠 Core Features (Airbnb-level MVP)
+1️⃣ User Roles
+
+Implement three distinct roles with different access levels:
+
+👤 Guest / User
+
+Browse villas
+
+Search by location, date, guests
+
+Apply filters (price, amenities, ratings)
+
+View villa details
+
+Book villas
+
+Save villas to wishlist
+
+Manage bookings
+
+View booking history
+
+Leave reviews & ratings
+
+🏡 Host / Seller
+
+Host onboarding flow (simple, step-by-step)
+
+Create and manage villa listings
+
+Upload images (gallery-style)
+
+Set pricing, availability, and rules
+
+View booking requests
+
+Accept / reject bookings
+
+View earnings dashboard
+
+Manage reviews
+
+🛠 Admin
+
+Dashboard overview
+
+Manage users (guests & hosts)
+
+Approve or suspend villa listings
+
+Manage categories, amenities, locations
+
+Handle disputes & reports
+
+View analytics (bookings, revenue, growth)
+
+🧩 Key Screens to Design
+🔹 Landing Page
+
+Hero section with destination search
+
+Featured villas
+
+Popular destinations
+
+“Become a Host” CTA
+
+Trust signals (reviews, ratings, safety)
+
+🔹 Search & Listing Page
+
+Grid-based villa cards
+
+Sticky filters (desktop)
+
+Bottom sheet filters (mobile)
+
+Map view toggle (optional MVP)
+
+🔹 Villa Detail Page
+
+Image gallery (carousel)
+
+Villa title, location, rating
+
+Price per night
+
+Amenities list
+
+Booking card (sticky on desktop)
+
+Host profile
+
+Reviews section
+
+🔹 Booking Flow
+
+Date selection
+
+Guest count
+
+Price breakdown
+
+Confirmation screen
+
+Booking success state
+
+🔹 Host Dashboard
+
+Listing management
+
+Calendar availability
+
+Earnings overview
+
+Booking requests
+
+🔹 Admin Dashboard
+
+Tables with filters
+
+Approval workflows
+
+Analytics cards
+
+✨ Interaction & Behavior
+
+Clear hover states and tap feedback
+
+Skeleton loaders instead of spinners
+
+Empty states with illustrations
+
+Confirmation modals for critical actions
+
+Friendly, human microcopy (Airbnb-like tone)
+
+🧠 Content & Tone
+
+Warm, welcoming, travel-focused language
+
+Simple CTA text (“Explore stays”, “Host your villa”)
+
+No corporate or technical jargon
+
+🚫 Explicit Constraints
+
+Do NOT copy Airbnb UI pixel-by-pixel
+
+Do NOT overcrowd screens
+
+Do NOT assume any specific tech stack
+
+Focus on experience, flow, and clarity
+
+🎯 Final Outcome Expected
+
+A production-ready MVP design that:
+
+Feels premium and trustworthy
+
+Works flawlessly on all screen sizes
+
+Supports Guest, Host, and Admin roles
+
+Is scalable into a full booking platform
+
+Can be themed easily by changing logo, colors, and images
