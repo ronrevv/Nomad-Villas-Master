@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { User } from "@shared/models/auth";
 import { useToast } from "@/hooks/use-toast";
+import { useEffect } from "react";
 
 async function fetchUser(): Promise<User | null> {
   const response = await fetch("/api/user"); // Updated path from /api/auth/user
@@ -64,6 +65,7 @@ export function useAuth() {
     mutationFn: login,
     onSuccess: (user) => {
       queryClient.setQueryData(["/api/user"], user);
+      localStorage.setItem("nomad_user", user.username);
     },
     onError: (error: Error) => {
       toast({
@@ -78,6 +80,7 @@ export function useAuth() {
     mutationFn: logout,
     onSuccess: () => {
       queryClient.setQueryData(["/api/user"], null);
+      localStorage.removeItem("nomad_user");
       // Optional: redirect to home
       window.location.href = "/";
     },
@@ -89,6 +92,15 @@ export function useAuth() {
       });
     }
   });
+
+  useEffect(() => {
+    if (!isLoading && !user) {
+        const storedUsername = localStorage.getItem("nomad_user");
+        if (storedUsername && !loginMutation.isPending) {
+            loginMutation.mutate({ username: storedUsername, password: "any" });
+        }
+    }
+  }, [isLoading, user]);
 
   return {
     user,

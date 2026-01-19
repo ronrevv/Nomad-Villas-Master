@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocation } from "wouter";
 import { addDays, differenceInDays, format } from "date-fns";
 import { Villa } from "@shared/schema";
 import { Button } from "@/components/ui/button";
@@ -7,6 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar as CalendarIcon, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
+import { useLoginModal } from "@/hooks/use-login-modal";
 import { useCreateBooking } from "@/hooks/use-bookings";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -23,8 +25,10 @@ interface BookingWidgetProps {
 
 export function BookingWidget({ villa }: BookingWidgetProps) {
   const { user } = useAuth();
+  const { openLogin } = useLoginModal();
   const { toast } = useToast();
   const createBooking = useCreateBooking();
+  const [, setLocation] = useLocation();
   
   const [date, setDate] = useState<{ from: Date; to: Date } | undefined>();
   const [guests, setGuests] = useState("1");
@@ -37,14 +41,9 @@ export function BookingWidget({ villa }: BookingWidgetProps) {
   const serviceFee = Math.round(villa.pricePerNight * numberOfNights * 0.12);
   const total = (villa.pricePerNight * numberOfNights) + cleaningFee + serviceFee;
 
-  const handleReserve = () => {
+  const handleReserve = async () => {
     if (!user) {
-      toast({
-        title: "Login Required",
-        description: "Please log in to reserve this villa.",
-        variant: "destructive"
-      });
-      // Optionally scroll to top or highlight login button
+      openLogin();
       return;
     }
 
@@ -57,14 +56,19 @@ export function BookingWidget({ villa }: BookingWidgetProps) {
       return;
     }
 
-    createBooking.mutate({
-      villaId: villa.id,
-      guestId: user.id, // Replit auth ID is string
-      startDate: format(date.from, "yyyy-MM-dd"),
-      endDate: format(date.to, "yyyy-MM-dd"),
-      guestCount: parseInt(guests),
-      totalPrice: total,
-    });
+    try {
+      await createBooking.mutateAsync({
+        villaId: villa.id,
+        guestId: user.id, // Replit auth ID is string
+        startDate: format(date.from, "yyyy-MM-dd"),
+        endDate: format(date.to, "yyyy-MM-dd"),
+        guestCount: parseInt(guests),
+        totalPrice: total,
+      });
+      setLocation("/trips");
+    } catch (error) {
+      // Error handled by hook toast
+    }
   };
 
   return (
@@ -141,6 +145,10 @@ export function BookingWidget({ villa }: BookingWidgetProps) {
           "Reserve"
         )}
       </Button>
+
+      <div className="text-center text-xs text-muted-foreground mt-2 mb-4">
+        You won't be charged yet. Instant Book available.
+      </div>
 
       {numberOfNights > 0 && (
         <div className="mt-6 space-y-4">
