@@ -39,7 +39,12 @@ export function BookingWidget({ villa }: BookingWidgetProps) {
 
   const handleReserve = () => {
     if (!user) {
-      window.location.href = "/api/login";
+      toast({
+        title: "Login Required",
+        description: "Please log in to reserve this villa.",
+        variant: "destructive"
+      });
+      // Optionally scroll to top or highlight login button
       return;
     }
 
