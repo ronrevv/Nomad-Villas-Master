@@ -8,6 +8,7 @@ import Home from "@/pages/Home";
 import VillaDetails from "@/pages/VillaDetails";
 import HostDashboard from "@/pages/HostDashboard";
 import Trips from "@/pages/Trips";
+import BecomeHost from "@/pages/BecomeHost";
 
 function Router() {
   return (
@@ -15,6 +16,7 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/villas/:id" component={VillaDetails} />
       <Route path="/host" component={HostDashboard} />
+      <Route path="/become-a-host" component={BecomeHost} />
       <Route path="/trips" component={Trips} />
       <Route path="/wishlist" component={Trips} /> {/* Reuse Trips page for now */}
       <Route path="/explore" component={Home} /> {/* Reuse Home for now */}

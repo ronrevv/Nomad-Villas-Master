@@ -1,9 +1,10 @@
 import { useVillas } from "@/hooks/use-villas";
 import { VillaCard } from "@/components/VillaCard";
 import { Layout } from "@/components/Layout";
+import { Hero } from "@/components/Hero";
 import { Button } from "@/components/ui/button";
 import { Search, Map as MapIcon, List } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useState } from "react";
 import VillaMap from "@/components/VillaMap";
@@ -26,10 +27,13 @@ export default function Home() {
 
   return (
     <Layout>
+      {/* Hero Section */}
+      <Hero />
+
       {/* Category Bar */}
-      <div className="sticky top-20 z-40 bg-background pt-4 pb-2 shadow-sm mb-6">
+      <div className="sticky top-20 z-40 bg-background/95 backdrop-blur pt-4 pb-2 shadow-sm mb-6 border-b border-border/40">
         <div className="container-padding overflow-x-auto no-scrollbar">
-          <div className="flex gap-8 min-w-max px-2">
+          <div className="flex gap-8 min-w-max px-2 justify-center md:justify-start">
             {categories.map((cat, i) => (
               <button 
                 key={i} 
@@ -44,7 +48,7 @@ export default function Home() {
       </div>
 
       {showMap ? (
-        <div className="h-[calc(100vh-180px)] w-full">
+        <div className="h-[calc(100vh-180px)] w-full relative z-0">
            <VillaMap villas={villas || []} className="h-full w-full" />
         </div>
       ) : (
@@ -60,11 +64,16 @@ export default function Home() {
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-10 pb-12">
+            <motion.div
+              className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-10 pb-12"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, staggerChildren: 0.1 }}
+            >
               {villas?.map((villa) => (
                 <VillaCard key={villa.id} villa={villa} />
               ))}
-            </div>
+            </motion.div>
           )}
 
           {!isLoading && villas?.length === 0 && (

@@ -98,6 +98,19 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const [showLogin, setShowLogin] = useState(false);
 
+  // Determine where "Switch to hosting" should go
+  // For MVP, if not logged in -> Login Modal
+  // If logged in -> Host Dashboard (which will prompt to create if empty)
+  // Actually, let's make it smarter:
+  const handleHostingClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!isAuthenticated) {
+      setShowLogin(true);
+    } else {
+      window.location.href = "/host";
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background flex flex-col font-sans">
       <LoginModal isOpen={showLogin} onClose={() => setShowLogin(false)} />
@@ -134,11 +147,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
           {/* User Menu */}
           <div className="flex items-center gap-2">
-            <Link href="/host">
-              <Button variant="ghost" className="hidden md:flex text-sm font-semibold rounded-full hover:bg-muted">
-                Switch to hosting
-              </Button>
-            </Link>
+            <Button
+                variant="ghost"
+                className="hidden md:flex text-sm font-semibold rounded-full hover:bg-muted"
+                onClick={handleHostingClick}
+            >
+              Switch to hosting
+            </Button>
             
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
