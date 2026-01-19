@@ -8,9 +8,17 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useState } from "react";
 import VillaMap from "@/components/VillaMap";
+import { useLocation } from "wouter";
 
 export default function Home() {
-  const { data: villas, isLoading } = useVillas();
+  const [location] = useLocation();
+  const searchParams = new URLSearchParams(window.location.search);
+  const filters = {
+    location: searchParams.get("location") || undefined,
+    guests: searchParams.get("guests") ? Number(searchParams.get("guests")) : undefined
+  };
+
+  const { data: villas, isLoading } = useVillas(filters);
   const [showMap, setShowMap] = useState(false);
 
   const categories = [

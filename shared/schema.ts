@@ -41,6 +41,15 @@ export const reviews = pgTable("reviews", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const messages = pgTable("messages", {
+  id: serial("id").primaryKey(),
+  senderId: text("sender_id").notNull().references(() => users.id),
+  receiverId: text("receiver_id").notNull().references(() => users.id),
+  content: text("content").notNull(),
+  read: boolean("read").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Relations
 export const villasRelations = relations(villas, ({ one, many }) => ({
   host: one(users, {
@@ -73,10 +82,24 @@ export const reviewsRelations = relations(reviews, ({ one }) => ({
   }),
 }));
 
+export const messagesRelations = relations(messages, ({ one }) => ({
+  sender: one(users, {
+    fields: [messages.senderId],
+    references: [users.id],
+    relationName: "sender"
+  }),
+  receiver: one(users, {
+    fields: [messages.receiverId],
+    references: [users.id],
+    relationName: "receiver"
+  }),
+}));
+
 // Schemas
 export const insertVillaSchema = createInsertSchema(villas).omit({ id: true, createdAt: true, rating: true, reviewCount: true });
 export const insertBookingSchema = createInsertSchema(bookings).omit({ id: true, createdAt: true, status: true });
 export const insertReviewSchema = createInsertSchema(reviews).omit({ id: true, createdAt: true });
+export const insertMessageSchema = createInsertSchema(messages).omit({ id: true, createdAt: true, read: true });
 
 // Types
 export type Villa = typeof villas.$inferSelect;
@@ -85,3 +108,5 @@ export type Booking = typeof bookings.$inferSelect;
 export type InsertBooking = z.infer<typeof insertBookingSchema>;
 export type Review = typeof reviews.$inferSelect;
 export type InsertReview = z.infer<typeof insertReviewSchema>;
+export type Message = typeof messages.$inferSelect;
+export type InsertMessage = z.infer<typeof insertMessageSchema>;

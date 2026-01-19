@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { insertVillaSchema, insertBookingSchema, insertReviewSchema, villas, bookings, reviews } from './schema';
+import { insertVillaSchema, insertBookingSchema, insertReviewSchema, insertMessageSchema, villas, bookings, reviews, messages } from './schema';
 
 export const errorSchemas = {
   validation: z.object({
@@ -64,6 +64,13 @@ export const api = {
         200: z.array(z.custom<typeof bookings.$inferSelect>()),
       },
     },
+    hostList: {
+      method: 'GET' as const,
+      path: '/api/bookings/host',
+      responses: {
+        200: z.array(z.custom<typeof bookings.$inferSelect>()),
+      },
+    }
   },
   reviews: {
     create: {
@@ -80,6 +87,24 @@ export const api = {
       path: '/api/villas/:id/reviews',
       responses: {
         200: z.array(z.custom<typeof reviews.$inferSelect>()),
+      },
+    },
+  },
+  messages: {
+    create: {
+      method: 'POST' as const,
+      path: '/api/messages',
+      input: insertMessageSchema,
+      responses: {
+        201: z.custom<typeof messages.$inferSelect>(),
+        400: errorSchemas.validation,
+      },
+    },
+    list: {
+      method: 'GET' as const,
+      path: '/api/messages',
+      responses: {
+        200: z.array(z.custom<typeof messages.$inferSelect>()),
       },
     },
   },

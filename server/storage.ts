@@ -1,9 +1,10 @@
 import {
-  users, villas, bookings, reviews,
+  users, villas, bookings, reviews, messages,
   type User, type InsertUser,
   type Villa, type InsertVilla,
   type Booking, type InsertBooking,
-  type Review, type InsertReview
+  type Review, type InsertReview,
+  type Message, type InsertMessage
 } from "@shared/schema";
 import session from "express-session";
 import createMemoryStore from "memorystore";
@@ -30,6 +31,10 @@ export interface IStorage {
   createReview(review: InsertReview): Promise<Review>;
   getReviewsByVilla(villaId: number): Promise<Review[]>;
   
+  // Messages
+  createMessage(message: InsertMessage): Promise<Message>;
+  getMessages(userId: string): Promise<Message[]>;
+
   // Session Store
   sessionStore: session.Store;
 }
@@ -39,9 +44,11 @@ export class MemStorage implements IStorage {
   private villas: Map<number, Villa>;
   private bookings: Map<number, Booking>;
   private reviews: Map<number, Review>;
+  private messages: Map<number, Message>;
   private currentVillaId: number;
   private currentBookingId: number;
   private currentReviewId: number;
+  private currentMessageId: number;
   public sessionStore: session.Store;
 
   constructor() {
@@ -49,9 +56,11 @@ export class MemStorage implements IStorage {
     this.villas = new Map();
     this.bookings = new Map();
     this.reviews = new Map();
+    this.messages = new Map();
     this.currentVillaId = 1;
     this.currentBookingId = 1;
     this.currentReviewId = 1;
+    this.currentMessageId = 1;
     this.sessionStore = new MemoryStore({
       checkPeriod: 86400000 // prune expired entries every 24h
     });
@@ -171,11 +180,7 @@ export class MemStorage implements IStorage {
     const villa = this.villas.get(review.villaId);
     if (villa) {
       const villaReviews = await this.getReviewsByVilla(villa.id);
-      // villaReviews includes the new one? No, we just added it to map.
-      // Yes, getReviewsByVilla reads from map.
-      // Wait, we just added it.
-      // Recalculate average
-      const allReviews = [...villaReviews]; // Assuming getReviewsByVilla fetches the new one too
+      const allReviews = [...villaReviews];
       const totalRating = allReviews.reduce((sum, r) => sum + r.rating, 0);
       villa.rating = Math.round(totalRating / allReviews.length);
       villa.reviewCount = allReviews.length;
@@ -188,6 +193,25 @@ export class MemStorage implements IStorage {
   async getReviewsByVilla(villaId: number): Promise<Review[]> {
     return Array.from(this.reviews.values()).filter(
       (review) => review.villaId === villaId,
+    );
+  }
+
+  // Message methods
+  async createMessage(message: InsertMessage): Promise<Message> {
+    const id = this.currentMessageId++;
+    const newMessage: Message = {
+      ...message,
+      id,
+      read: false,
+      createdAt: new Date(),
+    };
+    this.messages.set(id, newMessage);
+    return newMessage;
+  }
+
+  async getMessages(userId: string): Promise<Message[]> {
+    return Array.from(this.messages.values()).filter(
+      (m) => m.senderId === userId || m.receiverId === userId
     );
   }
 }

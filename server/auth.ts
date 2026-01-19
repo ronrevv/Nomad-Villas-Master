@@ -26,24 +26,15 @@ export function setupAuth(app: Express) {
   passport.use(
     new LocalStrategy(async (username, password, done) => {
       try {
-        // For MVP, simple auth: if user exists, check password.
-        // Actually, let's just create the user if they don't exist for simplicity?
-        // No, let's stick to standard behavior. Or better: "Login as..."
-        // For this MVP, we will allow login if the username exists.
-        // If not, we can auto-register or fail.
-        // Let's AUTO-REGISTER for simplicity of demo.
-
         let user = await storage.getUserByUsername(username);
         if (!user) {
-            // Auto-create user
             user = await storage.upsertUser({
                 username,
-                role: "guest", // Default role
-                firstName: username, // Fallback
+                role: "guest",
+                firstName: username,
                 id: `user_${Date.now()}`
             });
         }
-
         return done(null, user);
       } catch (err) {
         return done(err);
