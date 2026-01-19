@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { insertVillaSchema, insertBookingSchema, insertReviewSchema, insertMessageSchema, villas, bookings, reviews, messages } from './schema';
+import { insertVillaSchema, insertBookingSchema, insertReviewSchema, insertMessageSchema, insertFavoriteSchema, villas, bookings, reviews, messages, favorites } from './schema';
 
 export const errorSchemas = {
   validation: z.object({
@@ -64,12 +64,32 @@ export const api = {
         200: z.array(z.custom<typeof bookings.$inferSelect>()),
       },
     },
+    listExpanded: { // For Trips page
+        method: 'GET' as const,
+        path: '/api/bookings/expanded',
+        responses: {
+            200: z.array(z.object({
+                booking: z.custom<typeof bookings.$inferSelect>(),
+                villa: z.custom<typeof villas.$inferSelect>(),
+            })),
+        }
+    },
     hostList: {
       method: 'GET' as const,
       path: '/api/bookings/host',
       responses: {
         200: z.array(z.custom<typeof bookings.$inferSelect>()),
       },
+    },
+    update: {
+        method: 'PATCH' as const,
+        path: '/api/bookings/:id',
+        input: z.object({
+            status: z.enum(["pending", "confirmed", "cancelled", "completed", "rejected"]),
+        }),
+        responses: {
+            200: z.custom<typeof bookings.$inferSelect>(),
+        }
     }
   },
   reviews: {
@@ -108,6 +128,23 @@ export const api = {
       },
     },
   },
+  favorites: {
+      toggle: {
+          method: 'POST' as const,
+          path: '/api/favorites/toggle',
+          input: z.object({ villaId: z.number() }),
+          responses: {
+              200: z.object({ favorited: z.boolean() }),
+          }
+      },
+      list: {
+          method: 'GET' as const,
+          path: '/api/favorites',
+          responses: {
+              200: z.array(z.custom<typeof villas.$inferSelect>()), // Return villas directly
+          }
+      }
+  }
 };
 
 export function buildUrl(path: string, params?: Record<string, string | number>): string {

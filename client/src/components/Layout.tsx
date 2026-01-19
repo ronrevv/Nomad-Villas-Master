@@ -8,7 +8,8 @@ import {
   PlusCircle, 
   Briefcase, 
   Home, 
-  Heart 
+  Heart,
+  MessageSquare
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,7 +21,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 
 // Simple Login Dialog
@@ -88,6 +89,29 @@ function LoginModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void 
             <Button type="submit">Continue</Button>
           </DialogFooter>
         </form>
+
+        <div className="px-6 pb-6 pt-0 flex flex-col gap-3">
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center"><span className="w-full border-t"></span></div>
+              <div className="relative flex justify-center text-xs uppercase"><span className="bg-background px-2 text-muted-foreground">Demo Login</span></div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+                <Button variant="outline" className="text-xs" onClick={() => {
+                    loginMutation.mutate({ username: "hostuser", password: "any" }, {
+                        onSuccess: () => { onClose(); toast({ title: "Logged in as Host" }); }
+                    });
+                }}>
+                    Login as Host
+                </Button>
+                <Button variant="outline" className="text-xs" onClick={() => {
+                    loginMutation.mutate({ username: "guestuser", password: "any" }, {
+                        onSuccess: () => { onClose(); toast({ title: "Logged in as Guest" }); }
+                    });
+                }}>
+                    Login as Guest
+                </Button>
+            </div>
+        </div>
       </DialogContent>
     </Dialog>
   );
@@ -95,13 +119,19 @@ function LoginModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void 
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const { user, logout, isAuthenticated } = useAuth();
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
   const [showLogin, setShowLogin] = useState(false);
 
-  // Determine where "Switch to hosting" should go
-  // For MVP, if not logged in -> Login Modal
-  // If logged in -> Host Dashboard (which will prompt to create if empty)
-  // Actually, let's make it smarter:
+  useEffect(() => {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("login") === "true" && !isAuthenticated) {
+          setShowLogin(true);
+          // Clean up URL
+          const newUrl = window.location.pathname;
+          window.history.replaceState({}, '', newUrl);
+      }
+  }, [isAuthenticated]);
+
   const handleHostingClick = (e: React.MouseEvent) => {
     e.preventDefault();
     if (!isAuthenticated) {
@@ -131,7 +161,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
           {/* Search Bar (Desktop) - simplified for layout, main search is on home */}
           {location !== "/" && (
-            <div className="hidden md:flex items-center border rounded-full shadow-sm hover:shadow-md transition-all px-4 py-2.5 gap-4 cursor-pointer">
+            <div className="hidden md:flex items-center border rounded-full shadow-sm hover:shadow-md transition-all px-4 py-2.5 gap-4 cursor-pointer" onClick={() => setLocation('/')}>
               <div className="text-sm font-medium pl-2">Anywhere</div>
               <div className="h-4 w-[1px] bg-border"></div>
               <div className="text-sm font-medium">Any week</div>
@@ -172,6 +202,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   <>
                     <DropdownMenuLabel>My Account ({user?.username})</DropdownMenuLabel>
                     <DropdownMenuSeparator />
+                    <Link href="/inbox">
+                      <DropdownMenuItem className="cursor-pointer">
+                        <MessageSquare className="w-4 h-4 mr-2" />
+                        Messages
+                      </DropdownMenuItem>
+                    </Link>
                     <Link href="/trips">
                       <DropdownMenuItem className="cursor-pointer">
                         <Briefcase className="w-4 h-4 mr-2" />
@@ -184,6 +220,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
                         Wishlist
                       </DropdownMenuItem>
                     </Link>
+                    <Link href="/profile">
+                        <DropdownMenuItem className="cursor-pointer">
+                            <UserIcon className="w-4 h-4 mr-2" />
+                            Profile
+                        </DropdownMenuItem>
+                    </Link>
+                    <DropdownMenuSeparator />
                     <Link href="/host">
                       <DropdownMenuItem className="cursor-pointer">
                         <Home className="w-4 h-4 mr-2" />
@@ -248,13 +291,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <Briefcase className="w-6 h-6" />
             <span className="text-[10px] font-medium">Trips</span>
           </Link>
-          <Link href="/host" className={`flex flex-col items-center gap-1 ${location === '/host' ? 'text-primary' : 'text-muted-foreground'}`}>
-            <PlusCircle className="w-6 h-6" />
-            <span className="text-[10px] font-medium">Host</span>
+          <Link href="/inbox" className={`flex flex-col items-center gap-1 ${location === '/inbox' ? 'text-primary' : 'text-muted-foreground'}`}>
+            <MessageSquare className="w-6 h-6" />
+            <span className="text-[10px] font-medium">Inbox</span>
           </Link>
           <div 
             className={`flex flex-col items-center gap-1 ${location === '/profile' ? 'text-primary' : 'text-muted-foreground'}`}
-            onClick={() => isAuthenticated ? null : setShowLogin(true)}
+            onClick={() => isAuthenticated ? setLocation('/profile') : setShowLogin(true)}
           >
             {isAuthenticated ? (
                <Avatar className="w-6 h-6">

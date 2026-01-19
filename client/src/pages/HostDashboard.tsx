@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useVillas } from "@/hooks/use-villas";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, MessageSquare, Calendar as CalendarIcon, Home, DollarSign } from "lucide-react";
+import { Plus, MessageSquare, Calendar as CalendarIcon, Home, DollarSign, Check, X } from "lucide-react";
 import { VillaCard } from "@/components/VillaCard";
 import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -15,6 +15,7 @@ import { useState } from "react";
 import { format } from "date-fns";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
+import { useUpdateBooking } from "@/hooks/use-bookings";
 
 export default function HostDashboard() {
   const { user } = useAuth();
@@ -25,6 +26,8 @@ export default function HostDashboard() {
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [replyContent, setReplyContent] = useState("");
   const [activeMessageId, setActiveMessageId] = useState<string | null>(null);
+
+  const updateBooking = useUpdateBooking();
 
   const { data: bookings } = useQuery<Booking[]>({
     queryKey: ['/api/bookings/host'],
@@ -85,7 +88,7 @@ export default function HostDashboard() {
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center">
             <h2 className="text-2xl font-bold mb-4">Please log in to manage listings</h2>
-            <Button onClick={() => window.location.reload()}>Log In</Button>
+            <Button onClick={() => window.location.href = "/?login=true"}>Log In</Button>
           </div>
         </div>
       </Layout>
@@ -95,11 +98,12 @@ export default function HostDashboard() {
   // Identify booked dates for the calendar
   const bookedDates: Date[] = [];
   bookings?.forEach(b => {
-    // Very simple range expansion for demo
-    const start = new Date(b.startDate);
-    const end = new Date(b.endDate);
-    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-        bookedDates.push(new Date(d));
+    if (b.status === 'confirmed') {
+        const start = new Date(b.startDate);
+        const end = new Date(b.endDate);
+        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+            bookedDates.push(new Date(d));
+        }
     }
   });
 
@@ -171,7 +175,9 @@ export default function HostDashboard() {
                         </div>
                         <div className="text-right">
                             <div className="font-bold">${booking.totalPrice}</div>
-                            <div className="text-xs capitalize px-2 py-1 bg-secondary rounded-full inline-block mt-1">{booking.status}</div>
+                            <div className={`text-xs capitalize px-2 py-1 rounded-full inline-block mt-1 ${booking.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : booking.status === 'confirmed' ? 'bg-green-100 text-green-800' : 'bg-secondary'}`}>
+                                {booking.status}
+                            </div>
                         </div>
                     </Card>
                 )) : (
@@ -192,16 +198,45 @@ export default function HostDashboard() {
                 </Card>
              </div>
              <div className="flex-1">
-                 <h3 className="font-bold text-xl mb-4">Upcoming Schedule</h3>
+                 <h3 className="font-bold text-xl mb-4">Manage Bookings</h3>
                  <div className="space-y-4 h-[400px] overflow-y-auto pr-2">
-                     {bookings?.map(booking => (
+                     {bookings?.sort((a,b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime()).map(booking => (
                          <div key={booking.id} className="border p-4 rounded-lg flex justify-between items-center bg-card">
                              <div>
-                                 <div className="font-semibold">{format(new Date(booking.startDate), "MMMM d")}</div>
+                                 <div className="font-semibold flex items-center gap-2">
+                                     {format(new Date(booking.startDate), "MMM d")} - {format(new Date(booking.endDate), "MMM d")}
+                                     {booking.status === 'pending' && <span className="bg-yellow-100 text-yellow-800 text-[10px] px-2 py-0.5 rounded-full">New</span>}
+                                 </div>
                                  <div className="text-sm text-muted-foreground">{booking.guestCount} Guests • ${booking.totalPrice}</div>
                              </div>
-                             <div className="bg-primary/10 text-primary px-3 py-1 rounded-full text-sm font-medium">
-                                 {booking.status}
+
+                             <div className="flex gap-2">
+                                 {booking.status === 'pending' ? (
+                                     <>
+                                         <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="h-8 w-8 p-0 border-green-500 text-green-600 hover:bg-green-50"
+                                            onClick={() => updateBooking.mutate({ id: booking.id, status: 'confirmed' })}
+                                            disabled={updateBooking.isPending}
+                                         >
+                                             <Check className="w-4 h-4" />
+                                         </Button>
+                                         <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="h-8 w-8 p-0 border-red-500 text-red-600 hover:bg-red-50"
+                                            onClick={() => updateBooking.mutate({ id: booking.id, status: 'rejected' })}
+                                            disabled={updateBooking.isPending}
+                                         >
+                                             <X className="w-4 h-4" />
+                                         </Button>
+                                     </>
+                                 ) : (
+                                     <div className={`px-3 py-1 rounded-full text-sm font-medium ${booking.status === 'confirmed' ? 'bg-green-100 text-green-800' : 'bg-secondary'}`}>
+                                         {booking.status}
+                                     </div>
+                                 )}
                              </div>
                          </div>
                      ))}
@@ -228,6 +263,7 @@ export default function HostDashboard() {
           
           {/* INBOX TAB */}
            <TabsContent value="inbox">
+            {/* Same as before... */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-[600px]">
                 {/* Conversation List */}
                 <Card className="md:col-span-1 overflow-hidden flex flex-col">
@@ -284,7 +320,6 @@ export default function HostDashboard() {
                                     onSubmit={(e) => {
                                         e.preventDefault();
                                         if(!replyContent.trim()) return;
-                                        // The ID keys in conversations might be strings from database IDs
                                         sendMessageMutation.mutate({
                                             receiverId: String(activeMessageId),
                                             content: replyContent

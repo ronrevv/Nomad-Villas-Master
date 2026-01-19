@@ -3,6 +3,8 @@ import { Villa } from "@shared/schema";
 import { Star, Heart } from "lucide-react";
 import { useState } from "react";
 import { motion } from "framer-motion";
+import { useAuth } from "@/hooks/use-auth";
+import { useFavorites, useToggleFavorite } from "@/hooks/use-villas";
 
 interface VillaCardProps {
   villa: Villa;
@@ -10,6 +12,21 @@ interface VillaCardProps {
 
 export function VillaCard({ villa }: VillaCardProps) {
   const [isHovered, setIsHovered] = useState(false);
+  const { isAuthenticated } = useAuth();
+  const { data: favorites } = useFavorites();
+  const toggleFavorite = useToggleFavorite();
+
+  const isFavorited = favorites?.some(f => f.id === villa.id);
+
+  const handleFavoriteClick = (e: React.MouseEvent) => {
+      e.preventDefault(); // Prevent link navigation
+      e.stopPropagation();
+      if (!isAuthenticated) {
+          window.location.href = "/?login=true"; // Simple redirect
+          return;
+      }
+      toggleFavorite.mutate(villa.id);
+  };
 
   return (
     <Link href={`/villas/${villa.id}`}>
@@ -28,8 +45,13 @@ export function VillaCard({ villa }: VillaCardProps) {
             alt={villa.title}
             className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
-          <button className="absolute top-3 right-3 p-2 rounded-full hover:bg-background/10 hover:backdrop-blur-sm transition-all">
-            <Heart className="w-6 h-6 text-white drop-shadow-md" />
+          <button
+            className="absolute top-3 right-3 p-2 rounded-full hover:bg-background/10 hover:backdrop-blur-sm transition-all"
+            onClick={handleFavoriteClick}
+          >
+            <Heart
+                className={`w-6 h-6 drop-shadow-md ${isFavorited ? "fill-red-500 text-red-500" : "text-white"}`}
+            />
           </button>
           
           {/* Host/Badge Overlay could go here */}

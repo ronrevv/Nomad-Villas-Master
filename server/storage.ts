@@ -1,10 +1,11 @@
 import {
-  users, villas, bookings, reviews, messages,
+  users, villas, bookings, reviews, messages, favorites,
   type User, type InsertUser,
   type Villa, type InsertVilla,
   type Booking, type InsertBooking,
   type Review, type InsertReview,
-  type Message, type InsertMessage
+  type Message, type InsertMessage,
+  type Favorite, type InsertFavorite
 } from "@shared/schema";
 import session from "express-session";
 import createMemoryStore from "memorystore";
@@ -16,6 +17,7 @@ export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   upsertUser(user: InsertUser): Promise<User>;
+  updateUser(id: string, updates: Partial<User>): Promise<User>; // Added for profile
 
   // Villas
   getVillas(filters?: { location?: string; minPrice?: number; maxPrice?: number; guests?: number }): Promise<Villa[]>;
@@ -25,7 +27,9 @@ export interface IStorage {
   // Bookings
   createBooking(booking: InsertBooking): Promise<Booking>;
   getBookingsByUser(userId: string): Promise<Booking[]>;
+  getBookingsWithVilla(userId: string): Promise<{ booking: Booking; villa: Villa }[]>;
   getBookingsByHost(hostId: string): Promise<Booking[]>;
+  updateBooking(id: number, updates: { status: string }): Promise<Booking>;
   
   // Reviews
   createReview(review: InsertReview): Promise<Review>;
@@ -34,6 +38,11 @@ export interface IStorage {
   // Messages
   createMessage(message: InsertMessage): Promise<Message>;
   getMessages(userId: string): Promise<Message[]>;
+
+  // Favorites
+  toggleFavorite(userId: string, villaId: number): Promise<boolean>;
+  getFavorites(userId: string): Promise<Villa[]>;
+  getFavoriteIds(userId: string): Promise<number[]>;
 
   // Session Store
   sessionStore: session.Store;
@@ -45,10 +54,12 @@ export class MemStorage implements IStorage {
   private bookings: Map<number, Booking>;
   private reviews: Map<number, Review>;
   private messages: Map<number, Message>;
+  private favorites: Map<number, Favorite>;
   private currentVillaId: number;
   private currentBookingId: number;
   private currentReviewId: number;
   private currentMessageId: number;
+  private currentFavoriteId: number;
   public sessionStore: session.Store;
 
   constructor() {
@@ -57,10 +68,12 @@ export class MemStorage implements IStorage {
     this.bookings = new Map();
     this.reviews = new Map();
     this.messages = new Map();
+    this.favorites = new Map();
     this.currentVillaId = 1;
     this.currentBookingId = 1;
     this.currentReviewId = 1;
     this.currentMessageId = 1;
+    this.currentFavoriteId = 1;
     this.sessionStore = new MemoryStore({
       checkPeriod: 86400000 // prune expired entries every 24h
     });
@@ -78,7 +91,7 @@ export class MemStorage implements IStorage {
   }
 
   async upsertUser(userData: InsertUser): Promise<User> {
-    const id = userData.id || `user_${Date.now()}`; // Ensure ID exists
+    const id = userData.id || `user_${Date.now()}`;
     const existingUser = await this.getUser(id);
 
     const user: User = {
@@ -96,6 +109,14 @@ export class MemStorage implements IStorage {
 
     this.users.set(id, user);
     return user;
+  }
+
+  async updateUser(id: string, updates: Partial<User>): Promise<User> {
+      const user = await this.getUser(id);
+      if (!user) throw new Error("User not found");
+      const updated = { ...user, ...updates, updatedAt: new Date() };
+      this.users.set(id, updated);
+      return updated;
   }
 
   // Villa methods
@@ -156,6 +177,19 @@ export class MemStorage implements IStorage {
     );
   }
   
+  async getBookingsWithVilla(userId: string): Promise<{ booking: Booking; villa: Villa }[]> {
+      const bookings = await this.getBookingsByUser(userId);
+      // Join with Villa
+      const result = [];
+      for (const b of bookings) {
+          const villa = this.villas.get(b.villaId);
+          if (villa) {
+              result.push({ booking: b, villa });
+          }
+      }
+      return result;
+  }
+
   async getBookingsByHost(hostId: string): Promise<Booking[]> {
     const hostVillaIds = Array.from(this.villas.values())
       .filter(v => v.hostId === hostId)
@@ -164,6 +198,15 @@ export class MemStorage implements IStorage {
     return Array.from(this.bookings.values()).filter(
       (booking) => hostVillaIds.includes(booking.villaId)
     );
+  }
+
+  async updateBooking(id: number, updates: { status: string }): Promise<Booking> {
+      const booking = this.bookings.get(id);
+      if (!booking) throw new Error("Booking not found");
+      // Validate status enum manually or trust caller (zod handled in route)
+      const updated = { ...booking, ...updates };
+      this.bookings.set(id, updated);
+      return updated;
   }
 
   // Review methods
@@ -213,6 +256,44 @@ export class MemStorage implements IStorage {
     return Array.from(this.messages.values()).filter(
       (m) => m.senderId === userId || m.receiverId === userId
     );
+  }
+
+  // Favorites
+  async toggleFavorite(userId: string, villaId: number): Promise<boolean> {
+      const existing = Array.from(this.favorites.values()).find(
+          f => f.userId === userId && f.villaId === villaId
+      );
+
+      if (existing) {
+          this.favorites.delete(existing.id);
+          return false; // Removed
+      } else {
+          const id = this.currentFavoriteId++;
+          const fav: Favorite = {
+              id,
+              userId,
+              villaId,
+              createdAt: new Date()
+          };
+          this.favorites.set(id, fav);
+          return true; // Added
+      }
+  }
+
+  async getFavorites(userId: string): Promise<Villa[]> {
+      const userFavs = Array.from(this.favorites.values()).filter(f => f.userId === userId);
+      const result: Villa[] = [];
+      for (const fav of userFavs) {
+          const villa = this.villas.get(fav.villaId);
+          if (villa) result.push(villa);
+      }
+      return result;
+  }
+
+  async getFavoriteIds(userId: string): Promise<number[]> {
+       return Array.from(this.favorites.values())
+        .filter(f => f.userId === userId)
+        .map(f => f.villaId);
   }
 }
 

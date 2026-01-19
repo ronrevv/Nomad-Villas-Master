@@ -28,7 +28,7 @@ export const bookings = pgTable("bookings", {
   endDate: date("end_date").notNull(),
   totalPrice: integer("total_price").notNull(),
   guestCount: integer("guest_count").notNull(),
-  status: text("status", { enum: ["pending", "confirmed", "cancelled", "completed"] }).default("pending").notNull(),
+  status: text("status", { enum: ["pending", "confirmed", "cancelled", "completed", "rejected"] }).default("pending").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -50,6 +50,13 @@ export const messages = pgTable("messages", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const favorites = pgTable("favorites", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id),
+  villaId: integer("villa_id").notNull().references(() => villas.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Relations
 export const villasRelations = relations(villas, ({ one, many }) => ({
   host: one(users, {
@@ -58,6 +65,7 @@ export const villasRelations = relations(villas, ({ one, many }) => ({
   }),
   bookings: many(bookings),
   reviews: many(reviews),
+  favoritedBy: many(favorites),
 }));
 
 export const bookingsRelations = relations(bookings, ({ one }) => ({
@@ -95,11 +103,23 @@ export const messagesRelations = relations(messages, ({ one }) => ({
   }),
 }));
 
+export const favoritesRelations = relations(favorites, ({ one }) => ({
+  user: one(users, {
+    fields: [favorites.userId],
+    references: [users.id],
+  }),
+  villa: one(villas, {
+    fields: [favorites.villaId],
+    references: [villas.id],
+  }),
+}));
+
 // Schemas
 export const insertVillaSchema = createInsertSchema(villas).omit({ id: true, createdAt: true, rating: true, reviewCount: true });
 export const insertBookingSchema = createInsertSchema(bookings).omit({ id: true, createdAt: true, status: true });
 export const insertReviewSchema = createInsertSchema(reviews).omit({ id: true, createdAt: true });
 export const insertMessageSchema = createInsertSchema(messages).omit({ id: true, createdAt: true, read: true });
+export const insertFavoriteSchema = createInsertSchema(favorites).omit({ id: true, createdAt: true });
 
 // Types
 export type Villa = typeof villas.$inferSelect;
@@ -110,3 +130,5 @@ export type Review = typeof reviews.$inferSelect;
 export type InsertReview = z.infer<typeof insertReviewSchema>;
 export type Message = typeof messages.$inferSelect;
 export type InsertMessage = z.infer<typeof insertMessageSchema>;
+export type Favorite = typeof favorites.$inferSelect;
+export type InsertFavorite = z.infer<typeof insertFavoriteSchema>;
