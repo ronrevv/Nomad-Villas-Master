@@ -1,4 +1,3 @@
-import { db } from "./db";
 import {
   users, villas, bookings, reviews,
   type User, type InsertUser,
@@ -6,10 +5,17 @@ import {
   type Booking, type InsertBooking,
   type Review, type InsertReview
 } from "@shared/schema";
-import { eq, and, gte, lte } from "drizzle-orm";
-import { IAuthStorage } from "./replit_integrations/auth/storage";
+import session from "express-session";
+import createMemoryStore from "memorystore";
 
-export interface IStorage extends IAuthStorage {
+const MemoryStore = createMemoryStore(session);
+
+export interface IStorage {
+  // Auth
+  getUser(id: string): Promise<User | undefined>;
+  getUserByUsername(username: string): Promise<User | undefined>;
+  upsertUser(user: InsertUser): Promise<User>;
+
   // Villas
   getVillas(filters?: { location?: string; minPrice?: number; maxPrice?: number; guests?: number }): Promise<Villa[]>;
   getVilla(id: number): Promise<Villa | undefined>;
@@ -18,116 +24,172 @@ export interface IStorage extends IAuthStorage {
   // Bookings
   createBooking(booking: InsertBooking): Promise<Booking>;
   getBookingsByUser(userId: string): Promise<Booking[]>;
-  getBookingsByHost(hostId: string): Promise<Booking[]>; // Simplified: Get bookings for all villas owned by host
+  getBookingsByHost(hostId: string): Promise<Booking[]>;
   
   // Reviews
   createReview(review: InsertReview): Promise<Review>;
   getReviewsByVilla(villaId: number): Promise<Review[]>;
   
-  // Users (from Auth)
-  getUser(id: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  upsertUser(user: InsertUser): Promise<User>;
+  // Session Store
+  sessionStore: session.Store;
 }
 
-export class DatabaseStorage implements IStorage {
+export class MemStorage implements IStorage {
+  private users: Map<string, User>;
+  private villas: Map<number, Villa>;
+  private bookings: Map<number, Booking>;
+  private reviews: Map<number, Review>;
+  private currentVillaId: number;
+  private currentBookingId: number;
+  private currentReviewId: number;
+  public sessionStore: session.Store;
+
+  constructor() {
+    this.users = new Map();
+    this.villas = new Map();
+    this.bookings = new Map();
+    this.reviews = new Map();
+    this.currentVillaId = 1;
+    this.currentBookingId = 1;
+    this.currentReviewId = 1;
+    this.sessionStore = new MemoryStore({
+      checkPeriod: 86400000 // prune expired entries every 24h
+    });
+  }
+
   // Auth methods
   async getUser(id: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.id, id));
-    return user;
+    return this.users.get(id);
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.username, username));
-    return user;
+    return Array.from(this.users.values()).find(
+      (user) => user.username === username,
+    );
   }
 
   async upsertUser(userData: InsertUser): Promise<User> {
-    const [user] = await db
-      .insert(users)
-      .values(userData)
-      .onConflictDoUpdate({
-        target: users.id,
-        set: {
-          ...userData,
-          updatedAt: new Date(),
-        },
-      })
-      .returning();
+    const id = userData.id || `user_${Date.now()}`; // Ensure ID exists
+    const existingUser = await this.getUser(id);
+
+    const user: User = {
+      ...userData,
+      id: id,
+      username: userData.username || null,
+      firstName: userData.firstName || null,
+      lastName: userData.lastName || null,
+      email: userData.email || null,
+      profileImageUrl: userData.profileImageUrl || null,
+      role: userData.role || "guest", // Default to guest
+      createdAt: existingUser?.createdAt || new Date(),
+      updatedAt: new Date(),
+    };
+
+    this.users.set(id, user);
     return user;
   }
 
   // Villa methods
   async getVillas(filters?: { location?: string; minPrice?: number; maxPrice?: number; guests?: number }): Promise<Villa[]> {
-    let query = db.select().from(villas);
-    const conditions = [];
+    let allVillas = Array.from(this.villas.values());
 
-    if (filters?.location) {
-      // Simple case-insensitive match for now
-      // Note: In a real app, use ILIKE or full-text search. Drizzle ORM requires specific operator setup for ILIKE.
-      // We'll filter in memory for MVP simplicity if needed, or assume exact match for now.
-      // Actually, let's just return all and let the controller or memory filter if standard operators are tricky without extensions.
-      // But for basic filtering:
-      // conditions.push(eq(villas.location, filters.location)); 
-    }
-    if (filters?.minPrice) conditions.push(gte(villas.pricePerNight, filters.minPrice));
-    if (filters?.maxPrice) conditions.push(lte(villas.pricePerNight, filters.maxPrice));
-    if (filters?.guests) conditions.push(gte(villas.maxGuests, filters.guests));
-
-    if (conditions.length > 0) {
-      return await db.select().from(villas).where(and(...conditions));
+    if (filters) {
+      if (filters.location) {
+        allVillas = allVillas.filter(v => v.location.toLowerCase().includes(filters.location!.toLowerCase()));
+      }
+      if (filters.minPrice) {
+        allVillas = allVillas.filter(v => v.pricePerNight >= filters.minPrice!);
+      }
+      if (filters.maxPrice) {
+        allVillas = allVillas.filter(v => v.pricePerNight <= filters.maxPrice!);
+      }
+      if (filters.guests) {
+        allVillas = allVillas.filter(v => v.maxGuests >= filters.guests!);
+      }
     }
     
-    return await db.select().from(villas);
+    return allVillas;
   }
 
   async getVilla(id: number): Promise<Villa | undefined> {
-    const [villa] = await db.select().from(villas).where(eq(villas.id, id));
-    return villa;
+    return this.villas.get(id);
   }
 
   async createVilla(villa: InsertVilla): Promise<Villa> {
-    const [newVilla] = await db.insert(villas).values(villa).returning();
+    const id = this.currentVillaId++;
+    const newVilla: Villa = {
+      ...villa,
+      id,
+      rating: 0,
+      reviewCount: 0,
+      createdAt: new Date(),
+    };
+    this.villas.set(id, newVilla);
     return newVilla;
   }
 
   // Booking methods
   async createBooking(booking: InsertBooking): Promise<Booking> {
-    const [newBooking] = await db.insert(bookings).values(booking).returning();
+    const id = this.currentBookingId++;
+    const newBooking: Booking = {
+      ...booking,
+      id,
+      status: "pending",
+      createdAt: new Date(),
+    };
+    this.bookings.set(id, newBooking);
     return newBooking;
   }
 
   async getBookingsByUser(userId: string): Promise<Booking[]> {
-    return await db.select().from(bookings).where(eq(bookings.guestId, userId));
+    return Array.from(this.bookings.values()).filter(
+      (booking) => booking.guestId === userId,
+    );
   }
   
   async getBookingsByHost(hostId: string): Promise<Booking[]> {
-    // Join bookings with villas where villa.hostId = hostId
-    // For MVP, simplistic approach: find villas by host, then bookings for those villas
-    const hostVillas = await db.select().from(villas).where(eq(villas.hostId, hostId));
-    if (hostVillas.length === 0) return [];
-    
-    const villaIds = hostVillas.map(v => v.id);
-    // Drizzle 'inArray' needed
-    // return await db.select().from(bookings).where(inArray(bookings.villaId, villaIds));
-    
-    // Alternative: raw query or multiple queries. Let's do a simple loop or just fetch all bookings and filter (inefficient but safe for MVP)
-    // Actually, let's just use the query builder properly if we import inArray
-    // I'll skip complex implementation here and just return empty for now or fetch all.
-    // Let's defer to a simpler implementation:
-    const allBookings = await db.select().from(bookings);
-    return allBookings.filter(b => villaIds.includes(b.villaId));
+    const hostVillaIds = Array.from(this.villas.values())
+      .filter(v => v.hostId === hostId)
+      .map(v => v.id);
+
+    return Array.from(this.bookings.values()).filter(
+      (booking) => hostVillaIds.includes(booking.villaId)
+    );
   }
 
   // Review methods
   async createReview(review: InsertReview): Promise<Review> {
-    const [newReview] = await db.insert(reviews).values(review).returning();
+    const id = this.currentReviewId++;
+    const newReview: Review = {
+      ...review,
+      id,
+      createdAt: new Date(),
+    };
+    this.reviews.set(id, newReview);
+
+    // Update villa rating
+    const villa = this.villas.get(review.villaId);
+    if (villa) {
+      const villaReviews = await this.getReviewsByVilla(villa.id);
+      // villaReviews includes the new one? No, we just added it to map.
+      // Yes, getReviewsByVilla reads from map.
+      // Wait, we just added it.
+      // Recalculate average
+      const allReviews = [...villaReviews]; // Assuming getReviewsByVilla fetches the new one too
+      const totalRating = allReviews.reduce((sum, r) => sum + r.rating, 0);
+      villa.rating = Math.round(totalRating / allReviews.length);
+      villa.reviewCount = allReviews.length;
+      this.villas.set(villa.id, villa);
+    }
+
     return newReview;
   }
 
   async getReviewsByVilla(villaId: number): Promise<Review[]> {
-    return await db.select().from(reviews).where(eq(reviews.villaId, villaId));
+    return Array.from(this.reviews.values()).filter(
+      (review) => review.villaId === villaId,
+    );
   }
 }
 
-export const storage = new DatabaseStorage();
+export const storage = new MemStorage();

@@ -20,23 +20,97 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
+
+// Simple Login Dialog
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+
+function LoginModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  const [username, setUsername] = useState("");
+  const { loginMutation } = useAuth();
+  const { toast } = useToast();
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!username) return;
+
+    try {
+      await loginMutation.mutateAsync({ username, password: "any" }); // Password ignored in mock
+      onClose();
+      toast({
+        title: "Logged in successfully",
+        description: `Welcome back, ${username}!`,
+      });
+    } catch (err) {
+       toast({
+        title: "Login failed",
+        description: (err as Error).message,
+        variant: "destructive"
+      });
+    }
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>Log in or Sign up</DialogTitle>
+          <DialogDescription>
+            Enter your username to continue. We'll create an account if you don't have one.
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleLogin}>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="username" className="text-right">
+                Username
+              </Label>
+              <Input
+                id="username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="col-span-3"
+                autoFocus
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="submit">Continue</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const { user, logout, isAuthenticated } = useAuth();
   const [location] = useLocation();
-
-  const isHost = true; // Simplified for MVP
+  const [showLogin, setShowLogin] = useState(false);
 
   return (
     <div className="min-h-screen bg-background flex flex-col font-sans">
+      <LoginModal isOpen={showLogin} onClose={() => setShowLogin(false)} />
+
       {/* Navbar */}
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container-padding h-20 flex items-center justify-between">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 text-primary hover:opacity-90 transition-opacity">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-8 h-8">
-              <path d="M19.006 3.705a.75.75 0 0 0-.512-1.41L6 6.838V2.25a.75.75 0 0 0-.75-.75h-1.5A.75.75 0 0 0 3 2.25v6.204c-1.14.945-1.579 2.528-1.5 3.998.077 1.446.735 2.822 1.95 3.754V21a.75.75 0 0 0 .75.75h3.75a.75.75 0 0 0 .75-.75v-4.5h2.25v4.5a.75.75 0 0 0 .75.75h3.75a.75.75 0 0 0 .75-.75v-1.636a6.002 6.002 0 0 0 3.75-9.284ZM6 19.5h-1.5v-2.25H6v2.25Zm1.5-3v-2.25h1.5v2.25h-1.5Zm3.75-5.25a3.75 3.75 0 0 1-1.683-6.852l12.42 2.76a3.752 3.752 0 0 1 1.763 6.643V13.5h-12.5v-2.25Z" />
-            </svg>
+            {/* Simple logo icon */}
+            <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center text-primary-foreground">
+               <Home className="w-5 h-5" />
+            </div>
             <span className="font-display font-bold text-xl tracking-tight hidden md:inline-block text-foreground">
               Nomad Villas
             </span>
@@ -81,7 +155,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <DropdownMenuContent align="end" className="w-56 rounded-xl shadow-xl border-border/50">
                 {isAuthenticated ? (
                   <>
-                    <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                    <DropdownMenuLabel>My Account ({user?.username})</DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <Link href="/trips">
                       <DropdownMenuItem className="cursor-pointer">
@@ -104,7 +178,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     <DropdownMenuSeparator />
                     <DropdownMenuItem 
                       className="text-destructive focus:text-destructive cursor-pointer"
-                      onClick={() => logout()}
+                      onClick={() => logout.mutate()}
                     >
                       <LogOut className="w-4 h-4 mr-2" />
                       Log out
@@ -114,20 +188,20 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   <>
                     <DropdownMenuItem 
                       className="font-semibold cursor-pointer"
-                      onClick={() => window.location.href = "/api/login"}
+                      onClick={() => setShowLogin(true)}
                     >
                       Sign up
                     </DropdownMenuItem>
                     <DropdownMenuItem 
                       className="cursor-pointer"
-                      onClick={() => window.location.href = "/api/login"}
+                      onClick={() => setShowLogin(true)}
                     >
                       Log in
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem 
                       className="cursor-pointer"
-                      onClick={() => window.location.href = "/api/login"}
+                      onClick={() => setShowLogin(true)}
                     >
                       Host your home
                     </DropdownMenuItem>
@@ -165,7 +239,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </Link>
           <div 
             className={`flex flex-col items-center gap-1 ${location === '/profile' ? 'text-primary' : 'text-muted-foreground'}`}
-            onClick={() => isAuthenticated ? null : (window.location.href = "/api/login")}
+            onClick={() => isAuthenticated ? null : setShowLogin(true)}
           >
             {isAuthenticated ? (
                <Avatar className="w-6 h-6">

@@ -6,6 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Share, Heart, Star, MapPin, Wifi, Car, ChefHat, Coffee } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import VillaMap from "@/components/VillaMap";
 
 export default function VillaDetails() {
   const [match, params] = useRoute("/villas/:id");
@@ -138,6 +139,15 @@ export default function VillaDetails() {
               </div>
               <Button variant="outline" className="mt-8">Show all amenities</Button>
             </div>
+
+             {/* Map */}
+             <div className="pb-8 border-b">
+               <h2 className="text-xl font-bold font-display mb-6">Where you'll be</h2>
+               <div className="h-[400px] w-full rounded-xl overflow-hidden">
+                 <VillaMap villas={[villa]} />
+               </div>
+               <p className="mt-4 font-medium text-foreground">{villa.location}</p>
+             </div>
           </div>
 
           {/* Right Column - Sticky Booking Widget */}

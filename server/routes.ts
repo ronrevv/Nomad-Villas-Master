@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
-import { setupAuth, registerAuthRoutes } from "./replit_integrations/auth";
+import { setupAuth } from "./auth";
 import { z } from "zod";
 
 export async function registerRoutes(
@@ -10,8 +10,7 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
   // Auth Setup
-  await setupAuth(app);
-  registerAuthRoutes(app);
+  setupAuth(app);
 
   // === Villa Routes ===
   app.get(api.villas.list.path, async (req, res) => {
@@ -65,7 +64,7 @@ export async function registerRoutes(
 
   app.get(api.bookings.list.path, async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
-    const userId = (req.user as any).claims.sub; // From Replit Auth
+    const userId = (req.user as any).id;
     
     // If we had a role check, we could return host bookings vs guest bookings
     // For now, return guest bookings
@@ -103,9 +102,6 @@ export async function registerRoutes(
 export async function seedDatabase() {
   const existing = await storage.getVillas();
   if (existing.length === 0) {
-    // Create a dummy host user first? 
-    // Since we use Replit auth, we can't easily fake users with specific IDs unless we insert them directly.
-    // We'll create a dummy host record in the 'users' table if we can.
     
     const hostId = "host_123";
     await storage.upsertUser({
