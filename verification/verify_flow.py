@@ -19,14 +19,14 @@ def verify_full_flow(page: Page):
 
     # Click "Login as Host"
     with page.expect_response("**/api/login") as response_info:
-        page.get_by_role("button", name="Login as Host").click()
+        page.get_by_role("button", name="Host", exact=True).click()
 
     response = response_info.value
     print(f"Login Response: {response.status}")
     print(f"Cookies: {page.context.cookies()}")
 
     # Wait for Toast
-    expect(page.get_by_text("Logged in as Host")).to_be_visible()
+    expect(page.get_by_text("Logged in as host")).to_be_visible()
     print("Logged in as Host (Verified Toast)")
 
     time.sleep(2)
@@ -106,7 +106,7 @@ def verify_full_flow(page: Page):
     # 5. Login as Guest
     menu_btn.click()
     page.get_by_role("menuitem", name="Log in").click()
-    page.get_by_role("button", name="Login as Guest").click()
+    page.get_by_role("button", name="Guest", exact=True).click()
     print("Logged in as Guest")
     time.sleep(2)
 
@@ -115,7 +115,7 @@ def verify_full_flow(page: Page):
 
     # Look for "My Awesome Test Villa"
     print("Searching for villa...")
-    villa_card = page.get_by_text("My Awesome Test Villa")
+    villa_card = page.get_by_text("My Awesome Test Villa").first
     expect(villa_card).to_be_visible(timeout=10000)
 
     villa_card.click()
@@ -131,7 +131,7 @@ def verify_full_flow(page: Page):
     page.get_by_role("button", name="Reserve").click()
 
     # Check for success toast
-    expect(page.get_by_text("Booking Confirmed!")).to_be_visible()
+    expect(page.get_by_text("Booking Confirmed!").first).to_be_visible()
     print("Booking Confirmed!")
 
     # Screenshot

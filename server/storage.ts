@@ -22,7 +22,7 @@ export interface IStorage {
   // Villas
   getVillas(filters?: { location?: string; minPrice?: number; maxPrice?: number; guests?: number }): Promise<Villa[]>;
   getVilla(id: number): Promise<Villa | undefined>;
-  createVilla(villa: InsertVilla): Promise<Villa>;
+  createVilla(villa: InsertVilla & { rating?: number; reviewCount?: number }): Promise<Villa>;
   
   // Bookings
   createBooking(booking: InsertBooking): Promise<Booking>;
@@ -145,13 +145,13 @@ export class MemStorage implements IStorage {
     return this.villas.get(id);
   }
 
-  async createVilla(villa: InsertVilla): Promise<Villa> {
+  async createVilla(villa: InsertVilla & { rating?: number; reviewCount?: number }): Promise<Villa> {
     const id = this.currentVillaId++;
     const newVilla: Villa = {
       ...villa,
       id,
-      rating: 0,
-      reviewCount: 0,
+      rating: villa.rating || 0,
+      reviewCount: villa.reviewCount || 0,
       createdAt: new Date(),
     };
     this.villas.set(id, newVilla);
