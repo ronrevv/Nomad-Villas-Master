@@ -10,11 +10,12 @@ import { motion } from "framer-motion";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useState } from "react";
 import VillaMap from "@/components/VillaMap";
-import { useLocation, Link } from "wouter";
+import { useLocation, Link, useSearch } from "wouter";
 
 export default function Home() {
   const [location] = useLocation();
-  const searchParams = new URLSearchParams(window.location.search);
+  const searchString = useSearch();
+  const searchParams = new URLSearchParams(searchString);
   const filters = {
     location: searchParams.get("location") || undefined,
     guests: searchParams.get("guests") ? Number(searchParams.get("guests")) : undefined

@@ -4,7 +4,8 @@ import { Star, Heart } from "lucide-react";
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/hooks/use-auth";
-import { useFavorites, useToggleFavorite } from "@/hooks/use-villas";
+import { useVillas, useFavorites, useToggleFavorite } from "@/hooks/use-villas";
+import { useLoginModal } from "@/hooks/use-login-modal";
 
 interface VillaCardProps {
   villa: Villa;
@@ -15,6 +16,7 @@ export function VillaCard({ villa }: VillaCardProps) {
   const { isAuthenticated } = useAuth();
   const { data: favorites } = useFavorites();
   const toggleFavorite = useToggleFavorite();
+  const loginModal = useLoginModal();
 
   const isFavorited = favorites?.some(f => f.id === villa.id);
 
@@ -22,7 +24,7 @@ export function VillaCard({ villa }: VillaCardProps) {
       e.preventDefault(); // Prevent link navigation
       e.stopPropagation();
       if (!isAuthenticated) {
-          window.location.href = "/?login=true"; // Simple redirect
+          loginModal.onOpen();
           return;
       }
       toggleFavorite.mutate(villa.id);

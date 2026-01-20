@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, MessageSquare, Calendar as CalendarIcon, Home, DollarSign, Check, X } from "lucide-react";
 import { VillaCard } from "@/components/VillaCard";
-import { useLocation, Redirect } from "wouter";
+import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@shared/routes";
 import { Booking, Message, User } from "@shared/schema";
@@ -29,6 +29,13 @@ export default function HostDashboard() {
 
   const updateBooking = useUpdateBooking();
 
+  // Redirect guests early to prevent property access issues
+  useEffect(() => {
+    if (user && user.role === "guest") {
+      setLocation("/");
+    }
+  }, [user, setLocation]);
+
   const { data: bookings } = useQuery<Booking[]>({
     queryKey: ['/api/bookings/host'],
     queryFn: async () => {
@@ -36,7 +43,7 @@ export default function HostDashboard() {
       if (!res.ok) throw new Error("Failed to fetch bookings");
       return res.json();
     },
-    enabled: !!user
+    enabled: !!user && user.role !== "guest"
   });
 
   const { data: allUsers } = useQuery<User[]>({
@@ -56,7 +63,7 @@ export default function HostDashboard() {
       if (!res.ok) throw new Error("Failed to fetch messages");
       return res.json();
     },
-    enabled: !!user
+    enabled: !!user && user.role !== "guest"
   });
 
   const sendMessageMutation = useMutation({
@@ -77,28 +84,6 @@ export default function HostDashboard() {
     }
   });
 
-  // Effect to redirect guests (moved up to avoid hook order issues)
-  useEffect(() => {
-    if (user?.role === "guest") {
-      setLocation("/");
-    }
-  }, [user, setLocation]);
-
-  const myVillas = villas?.filter(v => v.hostId === user?.id) || [];
-
-  // Calculate earnings (simple mock)
-  const totalEarnings = bookings?.reduce((acc, b) => acc + (b.totalPrice || 0), 0) || 0;
-  const pendingBookings = bookings?.filter(b => b.status === 'pending').length || 0;
-  const confirmedBookings = bookings?.filter(b => b.status === 'confirmed').length || 0;
-
-  // Group messages by user (simple threading)
-  const conversations = messages?.reduce((acc, msg) => {
-    const otherId = msg.senderId === user?.id ? msg.receiverId : msg.senderId;
-    if (!acc[otherId]) acc[otherId] = [];
-    acc[otherId].push(msg);
-    return acc;
-  }, {} as Record<string, Message[]>) || {};
-
   if (!user) {
     return (
       <Layout>
@@ -111,9 +96,26 @@ export default function HostDashboard() {
       </Layout>
     );
   }
+
   if (user.role === "guest") {
+      // Should be redirected by useEffect, but return null to be safe
       return null;
   }
+
+  const myVillas = villas?.filter(v => v.hostId === user.id) || [];
+
+  // Calculate earnings (simple mock)
+  const totalEarnings = bookings?.reduce((acc, b) => acc + (b.totalPrice || 0), 0) || 0;
+  const pendingBookings = bookings?.filter(b => b.status === 'pending').length || 0;
+  const confirmedBookings = bookings?.filter(b => b.status === 'confirmed').length || 0;
+
+  // Group messages by user (simple threading)
+  const conversations = messages?.reduce((acc, msg) => {
+    const otherId = msg.senderId === user.id ? msg.receiverId : msg.senderId;
+    if (!acc[otherId]) acc[otherId] = [];
+    acc[otherId].push(msg);
+    return acc;
+  }, {} as Record<string, Message[]>) || {};
 
   if (user.role === "admin") {
       const hosts = allUsers?.filter(u => u.role === "host") || [];
@@ -365,7 +367,7 @@ export default function HostDashboard() {
                             </CardHeader>
                             <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-muted/10">
                                 {conversations[activeMessageId]?.sort((a,b) => new Date(a.createdAt!).getTime() - new Date(b.createdAt!).getTime()).map(msg => {
-                                    const isMe = msg.senderId === user?.id;
+                                    const isMe = msg.senderId === user.id;
                                     return (
                                         <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
                                             <div className={`max-w-[80%] rounded-2xl px-4 py-2 ${isMe ? 'bg-primary text-primary-foreground rounded-tr-none' : 'bg-muted rounded-tl-none'}`}>
