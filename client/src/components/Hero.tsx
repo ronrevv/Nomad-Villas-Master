@@ -1,17 +1,35 @@
 import { Button } from "@/components/ui/button";
 import { Search } from "lucide-react";
 import { useState } from "react";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 export function Hero() {
   const [, setLocation] = useLocation();
-  const [searchLocation, setSearchLocation] = useState("");
-  const [guests, setGuests] = useState("");
+  const searchString = useSearch();
+  const searchParams = new URLSearchParams(searchString);
+
+  // Initialize state from URL params
+  const [searchLocation, setSearchLocation] = useState(searchParams.get("location") || "");
+  const [guests, setGuests] = useState(searchParams.get("guests") || "");
+  const [date, setDate] = useState<{ from: Date | undefined; to: Date | undefined } | undefined>(
+    searchParams.get("from") && searchParams.get("to")
+      ? {
+          from: new Date(searchParams.get("from")!),
+          to: new Date(searchParams.get("to")!),
+        }
+      : undefined
+  );
 
   const handleSearch = () => {
     const params = new URLSearchParams();
     if (searchLocation) params.append("location", searchLocation);
     if (guests) params.append("guests", guests);
+    if (date?.from) params.append("from", date.from.toISOString());
+    if (date?.to) params.append("to", date.to.toISOString());
 
     setLocation(`/?${params.toString()}`);
   };
@@ -24,10 +42,10 @@ export function Hero() {
 
   return (
     <div className="relative w-full h-[550px] md:h-[650px] flex items-center justify-center bg-gray-100 overflow-hidden">
-      {/* Background Image - Lighter & More Professional */}
+      {/* Background Image */}
       <div className="absolute inset-0 z-0">
         <img
-          src="https://images.unsplash.com/photo-1600596542815-6ad4c727dd2d?q=80&w=2070&auto=format&fit=crop"
+          src="https://images.unsplash.com/photo-1613490493576-7fde63acd811?q=80&w=2071&auto=format&fit=crop"
           alt="Hero Background"
           className="w-full h-full object-cover"
         />
@@ -63,10 +81,37 @@ export function Hero() {
             </div>
 
             <div className="flex gap-4">
-              <div className="bg-gray-50 rounded-xl px-4 py-3 border border-gray-100 flex-1">
-                 <label className="text-xs font-bold uppercase text-gray-500 block mb-1">Dates</label>
-                 <div className="text-sm font-semibold text-gray-400">Add dates</div>
-              </div>
+               {/* Mobile Date Picker (Simple Input for now or reduced Popover) */}
+               {/* Using Popover for consistency but adapting trigger */}
+              <Popover>
+                <PopoverTrigger asChild>
+                    <div className="bg-gray-50 rounded-xl px-4 py-3 border border-gray-100 flex-1 cursor-pointer">
+                        <label className="text-xs font-bold uppercase text-gray-500 block mb-1">Dates</label>
+                        <div className={cn("text-sm font-semibold", !date?.from && "text-gray-400")}>
+                            {date?.from ? (
+                                date.to ? (
+                                    <>{format(date.from, "MMM d")} - {format(date.to, "MMM d")}</>
+                                ) : (
+                                    format(date.from, "MMM d")
+                                )
+                            ) : (
+                                "Add dates"
+                            )}
+                        </div>
+                    </div>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                        initialFocus
+                        mode="range"
+                        defaultMonth={date?.from}
+                        selected={date}
+                        onSelect={setDate}
+                        numberOfMonths={1}
+                    />
+                </PopoverContent>
+              </Popover>
+
               <div className="bg-gray-50 rounded-xl px-4 py-3 border border-gray-100 flex-1">
                  <label className="text-xs font-bold uppercase text-gray-500 block mb-1">Guests</label>
                  <input
@@ -106,17 +151,38 @@ export function Hero() {
                />
             </div>
 
-            {/* Check in */}
-            <div className="flex-1 px-8 py-3 hover:bg-gray-50 cursor-pointer transition-colors text-left">
-               <div className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-0.5">Check in</div>
-               <div className="text-sm font-semibold text-gray-400">Add dates</div>
-            </div>
+            {/* Date Range Picker Popover */}
+            <Popover>
+                <PopoverTrigger asChild>
+                    <div className="flex-[2] flex cursor-pointer hover:bg-gray-50 transition-colors">
+                        {/* Check in */}
+                        <div className="flex-1 px-6 py-3 text-left border-r border-transparent">
+                           <div className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-0.5">Check in</div>
+                           <div className={cn("text-sm font-semibold truncate", !date?.from && "text-gray-400")}>
+                                {date?.from ? format(date.from, "MMM d") : "Add dates"}
+                           </div>
+                        </div>
 
-            {/* Check out */}
-            <div className="flex-1 px-8 py-3 hover:bg-gray-50 cursor-pointer transition-colors text-left">
-               <div className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-0.5">Check out</div>
-               <div className="text-sm font-semibold text-gray-400">Add dates</div>
-            </div>
+                        {/* Check out */}
+                        <div className="flex-1 px-6 py-3 text-left">
+                           <div className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-0.5">Check out</div>
+                           <div className={cn("text-sm font-semibold truncate", !date?.to && "text-gray-400")}>
+                                {date?.to ? format(date.to, "MMM d") : "Add dates"}
+                           </div>
+                        </div>
+                    </div>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="center">
+                    <Calendar
+                        initialFocus
+                        mode="range"
+                        defaultMonth={date?.from}
+                        selected={date}
+                        onSelect={setDate}
+                        numberOfMonths={2}
+                    />
+                </PopoverContent>
+            </Popover>
 
             {/* Guests */}
             <div className="flex-1 pl-8 pr-2 py-2 hover:bg-gray-50 rounded-r-full cursor-pointer transition-colors flex items-center justify-between">

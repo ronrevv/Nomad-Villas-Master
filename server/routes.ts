@@ -20,6 +20,8 @@ export async function registerRoutes(
       minPrice: req.query.minPrice ? Number(req.query.minPrice) : undefined,
       maxPrice: req.query.maxPrice ? Number(req.query.maxPrice) : undefined,
       guests: req.query.guests ? Number(req.query.guests) : undefined,
+      startDate: req.query.startDate as string,
+      endDate: req.query.endDate as string,
     };
     const villas = await storage.getVillas(filters);
     res.json(villas);
@@ -434,7 +436,7 @@ export async function seedDatabase() {
     const lastMonthEnd = new Date(lastMonth); lastMonthEnd.setDate(lastMonth.getDate() + 5);
 
     // Upcoming booking for Bali Villa (Villa 1)
-    await storage.createBooking({
+    const seedBooking = await storage.createBooking({
       villaId: createdVillas[0].id,
       guestId,
       startDate: nextWeek.toISOString(),
@@ -443,6 +445,8 @@ export async function seedDatabase() {
       guestCount: 2,
       // status will default to pending, but storage sets it.
     });
+    // Manually confirm it so filtering works
+    await storage.updateBooking(seedBooking.id, { status: "confirmed" });
 
     // 4. Create Messages
     await storage.createMessage({

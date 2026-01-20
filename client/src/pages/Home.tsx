@@ -18,7 +18,9 @@ export default function Home() {
   const searchParams = new URLSearchParams(searchString);
   const filters = {
     location: searchParams.get("location") || undefined,
-    guests: searchParams.get("guests") ? Number(searchParams.get("guests")) : undefined
+    guests: searchParams.get("guests") ? Number(searchParams.get("guests")) : undefined,
+    startDate: searchParams.get("from") || undefined,
+    endDate: searchParams.get("to") || undefined,
   };
 
   const { data: villas, isLoading } = useVillas(filters);
@@ -38,6 +40,8 @@ export default function Home() {
     { icon: "🌲", label: "Cabins" },
     { icon: "🍷", label: "Vineyards" },
   ];
+
+  const hasFilters = filters.location || filters.guests || filters.startDate;
 
   return (
     <Layout>
@@ -70,7 +74,7 @@ export default function Home() {
           <div className="container-padding space-y-20">
 
             {/* Top Rated Section (Only show if no filters active) */}
-            {!filters.location && !filters.guests && !isLoading && topRatedVillas && topRatedVillas.length > 0 && (
+            {!hasFilters && !isLoading && topRatedVillas && topRatedVillas.length > 0 && (
               <section>
                  <div className="flex items-center gap-2 mb-8">
                    <Sparkles className="w-6 h-6 text-primary" />
@@ -87,7 +91,7 @@ export default function Home() {
             {/* Main Grid */}
             <section>
               <h2 className="text-2xl font-display font-bold mb-8">
-                {filters.location ? `Stays in ${filters.location}` : "Explore all listings"}
+                {hasFilters ? `Stays in ${filters.location || "selected area"}` : "Explore all listings"}
               </h2>
               {isLoading ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-10">
@@ -123,10 +127,10 @@ export default function Home() {
           </div>
 
           {/* Testimonials */}
-          {!filters.location && <Testimonials />}
+          {!hasFilters && <Testimonials />}
 
           {/* Become a Host CTA */}
-          {!filters.location && (
+          {!hasFilters && (
             <div className="container-padding py-20">
               <div className="relative rounded-3xl overflow-hidden min-h-[400px] flex items-center">
                  <img

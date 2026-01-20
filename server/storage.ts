@@ -21,7 +21,7 @@ export interface IStorage {
   updateUser(id: string, updates: Partial<User>): Promise<User>; // Added for profile
 
   // Villas
-  getVillas(filters?: { location?: string; minPrice?: number; maxPrice?: number; guests?: number }): Promise<Villa[]>;
+  getVillas(filters?: { location?: string; minPrice?: number; maxPrice?: number; guests?: number; startDate?: string; endDate?: string }): Promise<Villa[]>;
   getVilla(id: number): Promise<Villa | undefined>;
   createVilla(villa: InsertVilla & { rating?: number; reviewCount?: number }): Promise<Villa>;
   
@@ -125,7 +125,7 @@ export class MemStorage implements IStorage {
   }
 
   // Villa methods
-  async getVillas(filters?: { location?: string; minPrice?: number; maxPrice?: number; guests?: number }): Promise<Villa[]> {
+  async getVillas(filters?: { location?: string; minPrice?: number; maxPrice?: number; guests?: number; startDate?: string; endDate?: string }): Promise<Villa[]> {
     let allVillas = Array.from(this.villas.values());
 
     if (filters) {
@@ -140,6 +140,26 @@ export class MemStorage implements IStorage {
       }
       if (filters.guests) {
         allVillas = allVillas.filter(v => v.maxGuests >= filters.guests!);
+      }
+      if (filters.startDate && filters.endDate) {
+          const start = new Date(filters.startDate);
+          const end = new Date(filters.endDate);
+
+          // Filter out villas that have a CONFIRMED booking overlapping with the requested dates
+          allVillas = allVillas.filter(v => {
+              const villaBookings = Array.from(this.bookings.values()).filter(b => b.villaId === v.id && b.status === "confirmed");
+              for (const booking of villaBookings) {
+                  const bStart = new Date(booking.startDate);
+                  const bEnd = new Date(booking.endDate);
+
+                  // Check overlap
+                  // (StartA <= EndB) and (EndA >= StartB)
+                  if (start <= bEnd && end >= bStart) {
+                      return false; // Overlap found, exclude this villa
+                  }
+              }
+              return true; // No overlap
+          });
       }
     }
     
