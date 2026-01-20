@@ -20,6 +20,8 @@ export async function registerRoutes(
       minPrice: req.query.minPrice ? Number(req.query.minPrice) : undefined,
       maxPrice: req.query.maxPrice ? Number(req.query.maxPrice) : undefined,
       guests: req.query.guests ? Number(req.query.guests) : undefined,
+      startDate: req.query.startDate as string,
+      endDate: req.query.endDate as string,
     };
     const villas = await storage.getVillas(filters);
     res.json(villas);
@@ -35,6 +37,10 @@ export async function registerRoutes(
 
   app.post(api.villas.create.path, async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
+    const user = req.user as any;
+    if (user.role !== "host" && user.role !== "admin") {
+      return res.status(403).json({ message: "Only hosts can create listings" });
+    }
     try {
       const input = api.villas.create.input.parse(req.body);
       const villa = await storage.createVilla(input);
@@ -78,7 +84,11 @@ export async function registerRoutes(
 
   app.get(api.bookings.hostList.path, async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
-    const userId = (req.user as any).id;
+    const user = req.user as any;
+    if (user.role !== "host" && user.role !== "admin") {
+        return res.status(403).json({ message: "Access denied" });
+    }
+    const userId = user.id;
     const bookings = await storage.getBookingsByHost(userId);
     res.json(bookings);
   });
@@ -146,6 +156,14 @@ export async function registerRoutes(
   });
 
   // === User Routes ===
+  app.get("/api/users", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    const user = req.user as any;
+    if (user.role !== "admin") return res.sendStatus(403);
+    const users = await storage.getAllUsers();
+    res.json(users);
+  });
+
   app.patch("/api/user", async (req, res) => {
       if (!req.isAuthenticated()) return res.sendStatus(401);
       const userId = (req.user as any).id;
@@ -210,6 +228,16 @@ export async function seedDatabase() {
       role: "guest",
       username: "guestuser",
       profileImageUrl: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200"
+    });
+
+    await storage.upsertUser({
+      id: "admin_789",
+      email: "admin@nomad.com",
+      firstName: "Admin",
+      lastName: "User",
+      role: "admin",
+      username: "admin",
+      profileImageUrl: null
     });
 
     const villas = [
@@ -408,7 +436,7 @@ export async function seedDatabase() {
     const lastMonthEnd = new Date(lastMonth); lastMonthEnd.setDate(lastMonth.getDate() + 5);
 
     // Upcoming booking for Bali Villa (Villa 1)
-    await storage.createBooking({
+    const seedBooking = await storage.createBooking({
       villaId: createdVillas[0].id,
       guestId,
       startDate: nextWeek.toISOString(),
@@ -417,6 +445,8 @@ export async function seedDatabase() {
       guestCount: 2,
       // status will default to pending, but storage sets it.
     });
+    // Manually confirm it so filtering works
+    await storage.updateBooking(seedBooking.id, { status: "confirmed" });
 
     // 4. Create Messages
     await storage.createMessage({

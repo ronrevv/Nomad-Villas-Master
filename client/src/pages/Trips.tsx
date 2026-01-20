@@ -1,14 +1,16 @@
 import { Layout } from "@/components/Layout";
 import { useTrips, useUpdateBooking } from "@/hooks/use-bookings";
 import { useAuth } from "@/hooks/use-auth";
+import { useLoginModal } from "@/hooks/use-login-modal";
 import { Button } from "@/components/ui/button";
-import { Loader2, Calendar, MapPin, XCircle } from "lucide-react";
+import { Loader2, Calendar, MapPin, XCircle, MessageCircle, Info } from "lucide-react";
 import { Link } from "wouter";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Trips() {
   const { user, isAuthenticated } = useAuth();
+  const { openLogin } = useLoginModal();
   const { data: trips, isLoading } = useTrips();
   const updateBooking = useUpdateBooking();
   const { toast } = useToast();
@@ -19,12 +21,27 @@ export default function Trips() {
       }
   };
 
+  const handleMessageHost = () => {
+    toast({
+        title: "Messaging Host",
+        description: "Opening message thread...",
+    });
+    // In a real app, redirect to inbox or open chat
+  };
+
+  const handleCheckInInfo = () => {
+     toast({
+        title: "Check-in Information",
+        description: "Sent to your email.",
+     });
+  };
+
   if (!isAuthenticated) {
     return (
       <Layout>
         <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
           <h2 className="text-2xl font-bold font-display">Log in to view your trips</h2>
-          <Button onClick={() => window.location.href = "/?login=true"}>Log In</Button>
+          <Button onClick={() => openLogin()}>Log In</Button>
         </div>
       </Layout>
     );
@@ -76,22 +93,36 @@ export default function Trips() {
                                         {format(new Date(booking.startDate), "MMM d")} - {format(new Date(booking.endDate), "MMM d, yyyy")}
                                     </div>
 
-                                    <div className="mt-auto pt-4 border-t flex justify-between items-center">
-                                        <div className="flex flex-col">
-                                             <span className="text-xs text-muted-foreground">Total</span>
-                                             <span className="font-bold text-lg">${booking.totalPrice}</span>
+                                    <div className="mt-auto pt-4 border-t flex flex-col gap-3">
+                                        <div className="flex justify-between items-center">
+                                            <div className="flex flex-col">
+                                                 <span className="text-xs text-muted-foreground">Total</span>
+                                                 <span className="font-bold text-lg">${booking.totalPrice}</span>
+                                            </div>
+                                            {booking.status === 'pending' || booking.status === 'confirmed' ? (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                                    onClick={() => handleCancel(booking.id)}
+                                                    disabled={updateBooking.isPending}
+                                                >
+                                                    Cancel
+                                                </Button>
+                                            ) : null}
                                         </div>
-                                        {booking.status === 'pending' || booking.status === 'confirmed' ? (
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                                                onClick={() => handleCancel(booking.id)}
-                                                disabled={updateBooking.isPending}
-                                            >
-                                                Cancel
+
+                                        {/* Post-Booking Actions */}
+                                        <div className="flex gap-2">
+                                            <Button variant="outline" size="sm" className="flex-1 gap-2 text-xs" onClick={handleMessageHost}>
+                                                <MessageCircle className="w-3 h-3" />
+                                                Message Host
                                             </Button>
-                                        ) : null}
+                                            <Button variant="outline" size="sm" className="flex-1 gap-2 text-xs" onClick={handleCheckInInfo}>
+                                                <Info className="w-3 h-3" />
+                                                Check-in Info
+                                            </Button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

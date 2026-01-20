@@ -8,10 +8,10 @@ import { VillaCard } from "@/components/VillaCard";
 import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@shared/routes";
-import { Booking, Message } from "@shared/schema";
+import { Booking, Message, User } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -29,6 +29,13 @@ export default function HostDashboard() {
 
   const updateBooking = useUpdateBooking();
 
+  // Redirect guests early to prevent property access issues
+  useEffect(() => {
+    if (user && user.role === "guest") {
+      setLocation("/");
+    }
+  }, [user, setLocation]);
+
   const { data: bookings } = useQuery<Booking[]>({
     queryKey: ['/api/bookings/host'],
     queryFn: async () => {
@@ -36,7 +43,17 @@ export default function HostDashboard() {
       if (!res.ok) throw new Error("Failed to fetch bookings");
       return res.json();
     },
-    enabled: !!user
+    enabled: !!user && user.role !== "guest"
+  });
+
+  const { data: allUsers } = useQuery<User[]>({
+      queryKey: ['/api/users'],
+      queryFn: async () => {
+          const res = await fetch("/api/users");
+          if (!res.ok) throw new Error("Failed to fetch users");
+          return res.json();
+      },
+      enabled: user?.role === "admin"
   });
 
   const { data: messages } = useQuery<Message[]>({
@@ -46,7 +63,7 @@ export default function HostDashboard() {
       if (!res.ok) throw new Error("Failed to fetch messages");
       return res.json();
     },
-    enabled: !!user
+    enabled: !!user && user.role !== "guest"
   });
 
   const sendMessageMutation = useMutation({
@@ -67,21 +84,6 @@ export default function HostDashboard() {
     }
   });
 
-  const myVillas = villas?.filter(v => v.hostId === user?.id) || [];
-
-  // Calculate earnings (simple mock)
-  const totalEarnings = bookings?.reduce((acc, b) => acc + (b.totalPrice || 0), 0) || 0;
-  const pendingBookings = bookings?.filter(b => b.status === 'pending').length || 0;
-  const confirmedBookings = bookings?.filter(b => b.status === 'confirmed').length || 0;
-
-  // Group messages by user (simple threading)
-  const conversations = messages?.reduce((acc, msg) => {
-    const otherId = msg.senderId === user?.id ? msg.receiverId : msg.senderId;
-    if (!acc[otherId]) acc[otherId] = [];
-    acc[otherId].push(msg);
-    return acc;
-  }, {} as Record<string, Message[]>) || {};
-
   if (!user) {
     return (
       <Layout>
@@ -93,6 +95,70 @@ export default function HostDashboard() {
         </div>
       </Layout>
     );
+  }
+
+  if (user.role === "guest") {
+      // Should be redirected by useEffect, but return null to be safe
+      return null;
+  }
+
+  const myVillas = villas?.filter(v => v.hostId === user.id) || [];
+
+  // Calculate earnings (simple mock)
+  const totalEarnings = bookings?.reduce((acc, b) => acc + (b.totalPrice || 0), 0) || 0;
+  const pendingBookings = bookings?.filter(b => b.status === 'pending').length || 0;
+  const confirmedBookings = bookings?.filter(b => b.status === 'confirmed').length || 0;
+
+  // Group messages by user (simple threading)
+  const conversations = messages?.reduce((acc, msg) => {
+    const otherId = msg.senderId === user.id ? msg.receiverId : msg.senderId;
+    if (!acc[otherId]) acc[otherId] = [];
+    acc[otherId].push(msg);
+    return acc;
+  }, {} as Record<string, Message[]>) || {};
+
+  if (user.role === "admin") {
+      const hosts = allUsers?.filter(u => u.role === "host") || [];
+      return (
+          <Layout>
+              <div className="container-padding py-10">
+                  <h1 className="text-3xl font-display font-bold mb-8">Admin Dashboard</h1>
+                  <div className="space-y-8">
+                      {hosts.length === 0 && <p>No hosts found.</p>}
+                      {hosts.map(host => {
+                          const hostVillas = villas?.filter(v => v.hostId === host.id) || [];
+                          return (
+                              <Card key={host.id}>
+                                  <CardHeader>
+                                      <div className="flex items-center gap-4">
+                                          <div className="w-12 h-12 rounded-full bg-muted overflow-hidden">
+                                            <img src={host.profileImageUrl || ""} className="w-full h-full object-cover" alt={host.username || ""} />
+                                          </div>
+                                          <div>
+                                              <CardTitle>{host.firstName} {host.lastName} (@{host.username})</CardTitle>
+                                              <CardDescription>{host.email}</CardDescription>
+                                          </div>
+                                      </div>
+                                  </CardHeader>
+                                  <CardContent>
+                                      <h4 className="font-semibold mb-4">Listings ({hostVillas.length})</h4>
+                                      {hostVillas.length > 0 ? (
+                                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                                              {hostVillas.map(villa => (
+                                                  <VillaCard key={villa.id} villa={villa} />
+                                              ))}
+                                          </div>
+                                      ) : (
+                                          <p className="text-muted-foreground text-sm">No listings.</p>
+                                      )}
+                                  </CardContent>
+                              </Card>
+                          )
+                      })}
+                  </div>
+              </div>
+          </Layout>
+      );
   }
 
   // Identify booked dates for the calendar
@@ -301,7 +367,7 @@ export default function HostDashboard() {
                             </CardHeader>
                             <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-muted/10">
                                 {conversations[activeMessageId]?.sort((a,b) => new Date(a.createdAt!).getTime() - new Date(b.createdAt!).getTime()).map(msg => {
-                                    const isMe = msg.senderId === user?.id;
+                                    const isMe = msg.senderId === user.id;
                                     return (
                                         <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
                                             <div className={`max-w-[80%] rounded-2xl px-4 py-2 ${isMe ? 'bg-primary text-primary-foreground rounded-tr-none' : 'bg-muted rounded-tl-none'}`}>

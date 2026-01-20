@@ -408,11 +408,10 @@ export default function BecomeHost() {
         <div className="h-20 border-t bg-background flex items-center justify-between px-6 md:px-10 z-10">
            <Button
              variant="ghost"
-             onClick={prevStep}
-             disabled={step === 0}
+             onClick={() => step === 0 ? setLocation('/host') : prevStep()}
              className="underline font-semibold"
            >
-             Back
+             {step === 0 ? "Exit" : "Back"}
            </Button>
 
            <div className="flex gap-2 items-center">

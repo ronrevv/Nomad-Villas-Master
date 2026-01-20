@@ -1,5 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
+import { useLoginModal } from "@/hooks/use-login-modal";
+import { LoginModal } from "@/components/auth/LoginModal";
 import { 
   Search, 
   Menu, 
@@ -9,7 +11,8 @@ import {
   Briefcase, 
   Home, 
   Heart,
-  MessageSquare
+  MessageSquare,
+  Palmtree
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,129 +24,39 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useState, useEffect } from "react";
-import { useToast } from "@/hooks/use-toast";
-
-// Simple Login Dialog
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-
-function LoginModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-  const [username, setUsername] = useState("");
-  const { loginMutation } = useAuth();
-  const { toast } = useToast();
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!username) return;
-
-    try {
-      await loginMutation.mutateAsync({ username, password: "any" }); // Password ignored in mock
-      onClose();
-      toast({
-        title: "Logged in successfully",
-        description: `Welcome back, ${username}!`,
-      });
-    } catch (err) {
-       toast({
-        title: "Login failed",
-        description: (err as Error).message,
-        variant: "destructive"
-      });
-    }
-  };
-
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>Log in or Sign up</DialogTitle>
-          <DialogDescription>
-            Enter your username to continue. We'll create an account if you don't have one.
-          </DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleLogin}>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="username" className="text-right">
-                Username
-              </Label>
-              <Input
-                id="username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="col-span-3"
-                autoFocus
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button type="submit">Continue</Button>
-          </DialogFooter>
-        </form>
-
-        <div className="px-6 pb-6 pt-0 flex flex-col gap-3">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center"><span className="w-full border-t"></span></div>
-              <div className="relative flex justify-center text-xs uppercase"><span className="bg-background px-2 text-muted-foreground">Demo Login</span></div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-                <Button variant="outline" className="text-xs" onClick={() => {
-                    loginMutation.mutate({ username: "hostuser", password: "any" }, {
-                        onSuccess: () => { onClose(); toast({ title: "Logged in as Host" }); }
-                    });
-                }}>
-                    Login as Host
-                </Button>
-                <Button variant="outline" className="text-xs" onClick={() => {
-                    loginMutation.mutate({ username: "guestuser", password: "any" }, {
-                        onSuccess: () => { onClose(); toast({ title: "Logged in as Guest" }); }
-                    });
-                }}>
-                    Login as Guest
-                </Button>
-            </div>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
+import { useEffect } from "react";
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const { user, logout, isAuthenticated } = useAuth();
+  const { openLogin } = useLoginModal();
   const [location, setLocation] = useLocation();
-  const [showLogin, setShowLogin] = useState(false);
 
   useEffect(() => {
       const params = new URLSearchParams(window.location.search);
       if (params.get("login") === "true" && !isAuthenticated) {
-          setShowLogin(true);
+          openLogin();
           // Clean up URL
           const newUrl = window.location.pathname;
           window.history.replaceState({}, '', newUrl);
       }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, openLogin]);
 
   const handleHostingClick = (e: React.MouseEvent) => {
     e.preventDefault();
     if (!isAuthenticated) {
-      setShowLogin(true);
+      openLogin();
     } else {
       window.location.href = "/host";
     }
   };
 
+  const isHostOrAdmin = user?.role === "host" || user?.role === "admin";
+  // Show if not logged in (to prompt login) OR if host/admin
+  const showHostingOptions = !isAuthenticated || isHostOrAdmin;
+
   return (
     <div className="min-h-screen bg-background flex flex-col font-sans">
-      <LoginModal isOpen={showLogin} onClose={() => setShowLogin(false)} />
+      <LoginModal />
 
       {/* Navbar */}
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -151,10 +64,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 text-primary hover:opacity-90 transition-opacity">
             {/* Simple logo icon */}
-            <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center text-primary-foreground">
-               <Home className="w-5 h-5" />
+            <div className="w-9 h-9 bg-primary/10 rounded-xl flex items-center justify-center text-primary border border-primary/20 shadow-sm">
+               <Palmtree className="w-6 h-6" />
             </div>
-            <span className="font-display font-bold text-xl tracking-tight hidden md:inline-block text-foreground">
+            <span className="font-display font-bold text-xl tracking-tight text-foreground">
               Nomad Villas
             </span>
           </Link>
@@ -177,13 +90,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
           {/* User Menu */}
           <div className="flex items-center gap-2">
-            <Button
-                variant="ghost"
-                className="hidden md:flex text-sm font-semibold rounded-full hover:bg-muted"
-                onClick={handleHostingClick}
-            >
-              Switch to hosting
-            </Button>
+            {showHostingOptions && (
+              <Button
+                  variant="ghost"
+                  className="hidden md:flex text-sm font-semibold rounded-full hover:bg-muted"
+                  onClick={handleHostingClick}
+              >
+                Switch to hosting
+              </Button>
+            )}
             
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -227,12 +142,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
                         </DropdownMenuItem>
                     </Link>
                     <DropdownMenuSeparator />
-                    <Link href="/host">
-                      <DropdownMenuItem className="cursor-pointer">
-                        <Home className="w-4 h-4 mr-2" />
-                        Manage Listings
-                      </DropdownMenuItem>
-                    </Link>
+                    {isHostOrAdmin && (
+                      <Link href="/host">
+                        <DropdownMenuItem className="cursor-pointer">
+                          <Home className="w-4 h-4 mr-2" />
+                          Manage Listings
+                        </DropdownMenuItem>
+                      </Link>
+                    )}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem 
                       className="text-destructive focus:text-destructive cursor-pointer"
@@ -246,20 +163,20 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   <>
                     <DropdownMenuItem 
                       className="font-semibold cursor-pointer"
-                      onClick={() => setShowLogin(true)}
+                      onClick={() => openLogin()}
                     >
                       Sign up
                     </DropdownMenuItem>
                     <DropdownMenuItem 
                       className="cursor-pointer"
-                      onClick={() => setShowLogin(true)}
+                      onClick={() => openLogin()}
                     >
                       Log in
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem 
                       className="cursor-pointer"
-                      onClick={() => setShowLogin(true)}
+                      onClick={() => openLogin()}
                     >
                       Host your home
                     </DropdownMenuItem>
@@ -297,7 +214,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </Link>
           <div 
             className={`flex flex-col items-center gap-1 ${location === '/profile' ? 'text-primary' : 'text-muted-foreground'}`}
-            onClick={() => isAuthenticated ? setLocation('/profile') : setShowLogin(true)}
+            onClick={() => isAuthenticated ? setLocation('/profile') : openLogin()}
           >
             {isAuthenticated ? (
                <Avatar className="w-6 h-6">

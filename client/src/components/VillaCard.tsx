@@ -4,7 +4,8 @@ import { Star, Heart } from "lucide-react";
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/hooks/use-auth";
-import { useFavorites, useToggleFavorite } from "@/hooks/use-villas";
+import { useVillas, useFavorites, useToggleFavorite } from "@/hooks/use-villas";
+import { useLoginModal } from "@/hooks/use-login-modal";
 
 interface VillaCardProps {
   villa: Villa;
@@ -15,6 +16,7 @@ export function VillaCard({ villa }: VillaCardProps) {
   const { isAuthenticated } = useAuth();
   const { data: favorites } = useFavorites();
   const toggleFavorite = useToggleFavorite();
+  const loginModal = useLoginModal();
 
   const isFavorited = favorites?.some(f => f.id === villa.id);
 
@@ -22,10 +24,24 @@ export function VillaCard({ villa }: VillaCardProps) {
       e.preventDefault(); // Prevent link navigation
       e.stopPropagation();
       if (!isAuthenticated) {
-          window.location.href = "/?login=true"; // Simple redirect
+          loginModal.openLogin();
           return;
       }
       toggleFavorite.mutate(villa.id);
+  };
+
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+  const nextImage = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setCurrentImageIndex((prev) => (prev + 1) % villa.images.length);
+  };
+
+  const prevImage = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setCurrentImageIndex((prev) => (prev - 1 + villa.images.length) % villa.images.length);
   };
 
   return (
@@ -40,23 +56,51 @@ export function VillaCard({ villa }: VillaCardProps) {
       >
         {/* Image Container */}
         <div className="relative aspect-[20/19] overflow-hidden rounded-xl bg-muted">
-          <img 
-            src={villa.images[0]} 
-            alt={villa.title}
-            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-          />
+          <div className="absolute inset-0 transition-transform duration-500">
+            <img
+              src={villa.images[currentImageIndex]}
+              alt={villa.title}
+              className="h-full w-full object-cover"
+            />
+          </div>
+
+          {/* Image Navigation Dots */}
+          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+            {villa.images.slice(0, 5).map((_, idx) => (
+              <div
+                key={idx}
+                className={`w-1.5 h-1.5 rounded-full shadow-sm transition-all ${idx === currentImageIndex ? 'bg-white scale-125' : 'bg-white/60'}`}
+              />
+            ))}
+          </div>
+
+          {/* Navigation Arrows */}
           <button
-            className="absolute top-3 right-3 p-2 rounded-full hover:bg-background/10 hover:backdrop-blur-sm transition-all"
+            onClick={prevImage}
+            className={`absolute left-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-white/90 shadow-md opacity-0 group-hover:opacity-100 transition-all hover:scale-110 disabled:opacity-0 ${currentImageIndex === 0 ? 'hidden' : ''}`}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3 text-black"><path d="m15 18-6-6 6-6"/></svg>
+          </button>
+
+          <button
+            onClick={nextImage}
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-white/90 shadow-md opacity-0 group-hover:opacity-100 transition-all hover:scale-110"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3 text-black"><path d="m9 18 6-6-6-6"/></svg>
+          </button>
+
+          <button
+            className="absolute top-3 right-3 p-2 rounded-full hover:bg-black/10 transition-all z-10"
             onClick={handleFavoriteClick}
           >
             <Heart
-                className={`w-6 h-6 drop-shadow-md ${isFavorited ? "fill-red-500 text-red-500" : "text-white"}`}
+                className={`w-6 h-6 drop-shadow-md transition-colors ${isFavorited ? "fill-red-500 text-red-500" : "text-white/70 hover:text-white"}`}
             />
           </button>
           
-          {/* Host/Badge Overlay could go here */}
+          {/* Host/Badge Overlay */}
           {villa.rating > 4.8 && (
-            <div className="absolute top-3 left-3 px-2 py-1 bg-white/90 backdrop-blur rounded-md text-xs font-bold shadow-sm">
+            <div className="absolute top-3 left-3 px-2.5 py-1 bg-white/90 backdrop-blur-md rounded-full text-xs font-bold shadow-sm text-foreground">
               Guest Favorite
             </div>
           )}

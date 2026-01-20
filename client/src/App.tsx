@@ -3,6 +3,7 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { LoginModalProvider } from "@/hooks/use-login-modal";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
 import VillaDetails from "@/pages/VillaDetails";
@@ -34,8 +35,10 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <Router />
-        <Toaster />
+        <LoginModalProvider>
+          <Router />
+          <Toaster />
+        </LoginModalProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );
