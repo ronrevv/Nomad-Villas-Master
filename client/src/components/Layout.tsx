@@ -11,7 +11,8 @@ import {
   Briefcase, 
   Home, 
   Heart,
-  MessageSquare
+  MessageSquare,
+  Palmtree
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -63,10 +64,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 text-primary hover:opacity-90 transition-opacity">
             {/* Simple logo icon */}
-            <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center text-primary-foreground">
-               <Home className="w-5 h-5" />
+            <div className="w-9 h-9 bg-primary/10 rounded-xl flex items-center justify-center text-primary border border-primary/20 shadow-sm">
+               <Palmtree className="w-6 h-6" />
             </div>
-            <span className="font-display font-bold text-xl tracking-tight hidden md:inline-block text-foreground">
+            <span className="font-display font-bold text-xl tracking-tight text-foreground">
               Nomad Villas
             </span>
           </Link>
