@@ -15,6 +15,7 @@ const MemoryStore = createMemoryStore(session);
 export interface IStorage {
   // Auth
   getUser(id: string): Promise<User | undefined>;
+  getAllUsers(): Promise<User[]>;
   getUserByUsername(username: string): Promise<User | undefined>;
   upsertUser(user: InsertUser): Promise<User>;
   updateUser(id: string, updates: Partial<User>): Promise<User>; // Added for profile
@@ -82,6 +83,10 @@ export class MemStorage implements IStorage {
   // Auth methods
   async getUser(id: string): Promise<User | undefined> {
     return this.users.get(id);
+  }
+
+  async getAllUsers(): Promise<User[]> {
+    return Array.from(this.users.values());
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {

@@ -49,6 +49,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const isHostOrAdmin = user?.role === "host" || user?.role === "admin";
+  // Show if not logged in (to prompt login) OR if host/admin
+  const showHostingOptions = !isAuthenticated || isHostOrAdmin;
+
   return (
     <div className="min-h-screen bg-background flex flex-col font-sans">
       <LoginModal />
@@ -85,13 +89,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
           {/* User Menu */}
           <div className="flex items-center gap-2">
-            <Button
-                variant="ghost"
-                className="hidden md:flex text-sm font-semibold rounded-full hover:bg-muted"
-                onClick={handleHostingClick}
-            >
-              Switch to hosting
-            </Button>
+            {showHostingOptions && (
+              <Button
+                  variant="ghost"
+                  className="hidden md:flex text-sm font-semibold rounded-full hover:bg-muted"
+                  onClick={handleHostingClick}
+              >
+                Switch to hosting
+              </Button>
+            )}
             
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -135,12 +141,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
                         </DropdownMenuItem>
                     </Link>
                     <DropdownMenuSeparator />
-                    <Link href="/host">
-                      <DropdownMenuItem className="cursor-pointer">
-                        <Home className="w-4 h-4 mr-2" />
-                        Manage Listings
-                      </DropdownMenuItem>
-                    </Link>
+                    {isHostOrAdmin && (
+                      <Link href="/host">
+                        <DropdownMenuItem className="cursor-pointer">
+                          <Home className="w-4 h-4 mr-2" />
+                          Manage Listings
+                        </DropdownMenuItem>
+                      </Link>
+                    )}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem 
                       className="text-destructive focus:text-destructive cursor-pointer"

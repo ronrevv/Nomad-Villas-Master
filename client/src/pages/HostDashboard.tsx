@@ -5,13 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, MessageSquare, Calendar as CalendarIcon, Home, DollarSign, Check, X } from "lucide-react";
 import { VillaCard } from "@/components/VillaCard";
-import { useLocation } from "wouter";
+import { useLocation, Redirect } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@shared/routes";
-import { Booking, Message } from "@shared/schema";
+import { Booking, Message, User } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -37,6 +37,16 @@ export default function HostDashboard() {
       return res.json();
     },
     enabled: !!user
+  });
+
+  const { data: allUsers } = useQuery<User[]>({
+      queryKey: ['/api/users'],
+      queryFn: async () => {
+          const res = await fetch("/api/users");
+          if (!res.ok) throw new Error("Failed to fetch users");
+          return res.json();
+      },
+      enabled: user?.role === "admin"
   });
 
   const { data: messages } = useQuery<Message[]>({
@@ -67,6 +77,13 @@ export default function HostDashboard() {
     }
   });
 
+  // Effect to redirect guests (moved up to avoid hook order issues)
+  useEffect(() => {
+    if (user?.role === "guest") {
+      setLocation("/");
+    }
+  }, [user, setLocation]);
+
   const myVillas = villas?.filter(v => v.hostId === user?.id) || [];
 
   // Calculate earnings (simple mock)
@@ -93,6 +110,53 @@ export default function HostDashboard() {
         </div>
       </Layout>
     );
+  }
+  if (user.role === "guest") {
+      return null;
+  }
+
+  if (user.role === "admin") {
+      const hosts = allUsers?.filter(u => u.role === "host") || [];
+      return (
+          <Layout>
+              <div className="container-padding py-10">
+                  <h1 className="text-3xl font-display font-bold mb-8">Admin Dashboard</h1>
+                  <div className="space-y-8">
+                      {hosts.length === 0 && <p>No hosts found.</p>}
+                      {hosts.map(host => {
+                          const hostVillas = villas?.filter(v => v.hostId === host.id) || [];
+                          return (
+                              <Card key={host.id}>
+                                  <CardHeader>
+                                      <div className="flex items-center gap-4">
+                                          <div className="w-12 h-12 rounded-full bg-muted overflow-hidden">
+                                            <img src={host.profileImageUrl || ""} className="w-full h-full object-cover" alt={host.username || ""} />
+                                          </div>
+                                          <div>
+                                              <CardTitle>{host.firstName} {host.lastName} (@{host.username})</CardTitle>
+                                              <CardDescription>{host.email}</CardDescription>
+                                          </div>
+                                      </div>
+                                  </CardHeader>
+                                  <CardContent>
+                                      <h4 className="font-semibold mb-4">Listings ({hostVillas.length})</h4>
+                                      {hostVillas.length > 0 ? (
+                                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                                              {hostVillas.map(villa => (
+                                                  <VillaCard key={villa.id} villa={villa} />
+                                              ))}
+                                          </div>
+                                      ) : (
+                                          <p className="text-muted-foreground text-sm">No listings.</p>
+                                      )}
+                                  </CardContent>
+                              </Card>
+                          )
+                      })}
+                  </div>
+              </div>
+          </Layout>
+      );
   }
 
   // Identify booked dates for the calendar
