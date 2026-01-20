@@ -24,7 +24,7 @@ export function VillaCard({ villa }: VillaCardProps) {
       e.preventDefault(); // Prevent link navigation
       e.stopPropagation();
       if (!isAuthenticated) {
-          loginModal.onOpen();
+          loginModal.openLogin();
           return;
       }
       toggleFavorite.mutate(villa.id);

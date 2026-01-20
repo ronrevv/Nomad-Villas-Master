@@ -77,7 +77,7 @@ export default function VillaMap({ villas, className }: MapProps) {
                  <h3 className="font-bold">{villa.title}</h3>
                  <p>{villa.location}</p>
                  <p className="font-semibold">${villa.pricePerNight} / night</p>
-                 <Link href={`/villa/${villa.id}`}>View Details</Link>
+                 <Link href={`/villas/${villa.id}`}>View Details</Link>
                </div>
             </Popup>
           </Marker>
